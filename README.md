@@ -1,5 +1,7 @@
 # JIT EXTRACTOR
 
+**▶ [Play it live](https://jit-extractor.pages.dev)** — no install, runs in the browser.
+
 A minimalist sci-fi extraction loop — prototype / vertical slice.
 Land on a procedurally generated planet, deploy extractors, meet the ore
 quota, defend the lander, and fly back to orbit. ~2–3 minutes per contract.
