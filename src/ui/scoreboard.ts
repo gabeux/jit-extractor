@@ -37,6 +37,7 @@ export class Scoreboard {
   private loading = false
   private showRambos = true
   private ramboBox = new DOMRect(0, 0, 0, 0)
+  private tabBoxes: DOMRect[] = []
 
   constructor() {
     try { this.showRambos = localStorage.getItem(RAMBO_KEY) !== '0' } catch { /* default on */ }
@@ -72,6 +73,16 @@ export class Scoreboard {
       sfx.blip()
     }
     if (input.wasPressed('KeyR')) this.toggleRambos()
+    if (input.mousePressed) {
+      for (let i = 0; i < TABS.length; i++) {
+        const b = this.tabBoxes[i]
+        if (b && input.mouseX >= b.x && input.mouseX <= b.x + b.width &&
+            input.mouseY >= b.y && input.mouseY <= b.y + b.height && TABS[i] !== this.tab) {
+          this.tab = TABS[i]
+          sfx.blip()
+        }
+      }
+    }
     if (input.mousePressed &&
         input.mouseX >= this.ramboBox.x && input.mouseX <= this.ramboBox.x + this.ramboBox.width &&
         input.mouseY >= this.ramboBox.y && input.mouseY <= this.ramboBox.y + this.ramboBox.height) {
@@ -99,6 +110,7 @@ export class Scoreboard {
       const t = TABS[i]
       const x = VIEW_W / 2 + (i - 1) * 130
       const active = t === this.tab
+      this.tabBoxes[i] = new DOMRect(x - 55, 66, 110, 30)
       text(ctx, TAB_LABELS[t], x, 82, { size: 14, color: active ? PAL.accent : PAL.dim })
       if (active) {
         ctx.fillStyle = PAL.accent
@@ -163,6 +175,6 @@ export class Scoreboard {
     if (this.board?.offline) {
       text(ctx, 'OFFLINE — LOCAL RECORDS ONLY', px + pw - 26, 446, { size: 9, color: PAL.warm, align: 'right' })
     }
-    drawKeyHint(ctx, '[Q]/[E] SWITCH TAB · [R] SURVIVORS · [TAB] CLOSE', VIEW_W / 2, 474, 10)
+    drawKeyHint(ctx, 'CLICK OR [Q]/[E] SWITCH TAB · [R] SURVIVORS · [TAB] CLOSE', VIEW_W / 2, 474, 10)
   }
 }
