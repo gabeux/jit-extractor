@@ -6,8 +6,8 @@ pages_build_output_dir = "dist"
 # the namespace ids here, or bind them in the Pages project settings UI.
 [[kv_namespaces]]
 binding = "SCORES"
-id = "REPLACE_WITH_SCORES_KV_ID"
+id = "a3e3281f99644a7cb170a4d680c6763a"
 
 [[kv_namespaces]]
 binding = "STATS"
-id = "REPLACE_WITH_STATS_KV_ID"
+id = "c9056cb7c9404887a28eb1bde2529116"
