@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JIT EXTRACTOR</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2306080d'/><circle cx='8' cy='11' r='5' fill='none' stroke='%2353d8e8'/><rect x='6' y='2' width='4' height='5' fill='%23c8d2dc'/></svg>" />
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #06080d; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    canvas {
+      display: block;
+      width: min(100vw, calc(100vh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="960" height="540"></canvas>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

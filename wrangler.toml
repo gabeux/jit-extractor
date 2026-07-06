@@ -1,0 +1,13 @@
+name = "jit-extractor"
+compatibility_date = "2025-06-01"
+pages_build_output_dir = "dist"
+
+# Create these in the Cloudflare dashboard (Workers & Pages -> KV) and paste
+# the namespace ids here, or bind them in the Pages project settings UI.
+[[kv_namespaces]]
+binding = "SCORES"
+id = "REPLACE_WITH_SCORES_KV_ID"
+
+[[kv_namespaces]]
+binding = "STATS"
+id = "REPLACE_WITH_STATS_KV_ID"
