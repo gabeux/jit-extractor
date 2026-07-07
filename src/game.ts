@@ -4,6 +4,8 @@ import { text } from './render'
 import { PAL } from './palette'
 import { Scoreboard } from './ui/scoreboard'
 import { PatDialogue } from './ui/dialogue'
+import { Tutorial, SIM_MODS } from './tutorial/tutorial'
+import { setTutorialState } from './ui/patscript'
 import { sendRunEnd } from './net/analytics'
 import { generatePlanet, type Planet } from './planetname'
 import { WarpStage } from './stages/warp'
@@ -31,6 +33,7 @@ export class Game {
   typingName = false
   scoreboard = new Scoreboard()
   pat = new PatDialogue()
+  tutorial: Tutorial | null = null
   planet: Planet = { system: '', name: '' }
   stage: Stage
   private seed = Math.floor(Math.random() * 0x7fffffff)
@@ -51,7 +54,20 @@ export class Game {
     this.dreamWake = false // whatever it was, work resumes
     this.runStartMs = performance.now()
     this.world = generateWorld(this.seed)
+    if (this.tutorial) {
+      this.world.simulated = true
+      this.world.mods = { ...SIM_MODS }
+    }
     this.setStage(new FlightStage(this, 'descent'))
+  }
+
+  beginTutorial() { this.tutorial = new Tutorial() }
+
+  /** 'done' persists (future refreshers/console); 'aborted' lets P.A.T. re-offer. */
+  endTutorial(result: 'done' | 'aborted') {
+    if (this.tutorial && result === 'done') setTutorialState('done')
+    this.tutorial = null
+    this.pat.close()
   }
 
   runTimeMs(): number {
@@ -72,7 +88,7 @@ export class Game {
   gotoDocking() { this.setStage(new DockingStage(this)) }
 
   completeRun() {
-    this.runsCompleted++
+    if (!this.world?.simulated) this.runsCompleted++ // sim drops don't count
     this.freshSeed()
     // new contract, new planet: jump there properly
     this.setStage(new WarpStage(this))
@@ -83,6 +99,12 @@ export class Game {
   }
 
   terminate(reason: string) {
+    if (this.world?.simulated) {
+      // dying in the simulation is a lesson, not a statistic
+      this.endTutorial('aborted')
+      this.setStage(new GameOverStage(this, reason))
+      return
+    }
     sendRunEnd('TERMINATED')
     this.setStage(new GameOverStage(this, reason))
   }
@@ -106,15 +128,15 @@ export class Game {
     if (this.input.wasPressed('KeyB') && !this.typingName && !buildingContext) this.music.prev()
     if (this.music.creditT > 0) this.music.creditT -= dt
     // TAB leaderboard (pauses the sim while open)
-    if (this.input.wasPressed('Tab') && !this.typingName && !this.pat.open) this.scoreboard.toggle()
+    if (this.input.wasPressed('Tab') && !this.typingName && !this.pat.blocking) this.scoreboard.toggle()
     if (this.scoreboard.open) {
       this.scoreboard.update(this.input)
       return
     }
-    // P.A.T. communicator also pauses the sim and owns input while open
+    // P.A.T.: conversations pause the sim and own input; hints don't
     if (this.pat.open) {
       this.pat.update(dt, this.input)
-      return
+      if (this.pat.blocking) return
     }
     // kill cam runs on real time regardless of sim slow-mo
     if (this.world?.killCam) {
@@ -122,6 +144,7 @@ export class Game {
       if (this.world.killCam.t <= 0) this.world.killCam = null
     }
     this.stage.update(dt)
+    this.tutorial?.update(this)
   }
 
   draw(ctx: CanvasRenderingContext2D) {

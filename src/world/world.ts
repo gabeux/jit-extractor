@@ -42,6 +42,10 @@ export class World {
   time = 0
   shake = 0
 
+  // tutorial "simulated drop": friendlier stats, no leaderboard/analytics
+  simulated = false
+  mods = { dmgOut: 1, dmgIn: 1, mine: 1, fuelBurn: 1 }
+
   // pirate raid state (triggered by player kills)
   private raidQueued = false
   private raidCountdown = -1

@@ -89,7 +89,7 @@ export class Building extends Entity {
       it.fill = Math.min(100, it.fill + FUELGEN_RATE * dt)
       if (this.puffT <= 0) { w.burst(this.x + 6, this.y - this.h, 1, PAL.warm, 25); this.puffT = 0.5 }
     } else if (it.kind === 'drill' && it.fill < 100) {
-      it.fill = Math.min(100, it.fill + DRILL_RATE * dt)
+      it.fill = Math.min(100, it.fill + DRILL_RATE * w.mods.mine * dt)
       if (this.puffT <= 0) { w.burst(this.x, this.y - 4, 2, PAL.dim, 40); this.puffT = 0.7 }
     } else if (it.kind === 'turret') {
       this.cooldown -= dt

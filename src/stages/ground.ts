@@ -392,6 +392,11 @@ export class GroundStage implements Stage {
     return [(wx - camX) * this.zoom, (wy - camY) * this.zoom]
   }
 
+  /** World -> screen with the current camera; used by tutorial pointers. */
+  screenPoint(wx: number, wy: number): [number, number] {
+    return this.toScreen(wx, wy, this.camXS, this.camYS)
+  }
+
   private drawPromptsAndMenu(ctx: CanvasRenderingContext2D, w: World, camX: number, camY: number) {
     const { player, lander } = w
     const nearLander = Math.abs(player.x - lander.x) < 76 && Math.abs(player.y - lander.y) < 70
@@ -563,6 +568,13 @@ export class GroundStage implements Stage {
       text(ctx, label, VIEW_W / 2, 150, { size: pulse, color: PAL.danger })
     }
 
+    // tutorial owns the guidance: no objective line to fight P.A.T. for attention
+    if (w.simulated) {
+      text(ctx, '— SIMULATED DROP —', VIEW_W / 2, 26, {
+        size: 11, color: PAL.accent, alpha: 0.7 + Math.sin(w.time * 2.5) * 0.3,
+      })
+      return
+    }
     // one-line objective with the load-bearing words in color
     if (w.meteorStorm) {
       textSegments(ctx, [['THE SKY IS FALLING', PAL.danger]], VIEW_W / 2, 26, 12)

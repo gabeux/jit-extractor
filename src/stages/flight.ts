@@ -60,7 +60,7 @@ export class FlightStage implements Stage {
     const hasFuel = lander.fuel > 0
     if (hasFuel && (input.isDown('KeyW') || input.isDown('Space') || input.isDown('ArrowUp'))) {
       lander.vy -= (600 / massFactor) * dt
-      lander.fuel = Math.max(0, lander.fuel - 6.5 * dt)
+      lander.fuel = Math.max(0, lander.fuel - 6.5 * w.mods.fuelBurn * dt)
       lander.thrustMain = true
       this.thrustSfxT -= dt
       if (this.thrustSfxT <= 0) { sfx.thrust(); this.thrustSfxT = 0.09 }
@@ -68,7 +68,7 @@ export class FlightStage implements Stage {
     const ax = input.axisX()
     if (hasFuel && ax !== 0) {
       lander.vx += ax * (380 / massFactor) * dt
-      lander.fuel = Math.max(0, lander.fuel - 2.2 * dt)
+      lander.fuel = Math.max(0, lander.fuel - 2.2 * w.mods.fuelBurn * dt)
       lander.thrustSide = ax
     }
     // Z vents ore overboard to shed weight
@@ -164,6 +164,11 @@ export class FlightStage implements Stage {
       drawKeyHint(ctx, 'HOLD [Z] — VENT ORE', 14 + 62, 90, 10)
     }
 
+    if (w.simulated) {
+      text(ctx, '— SIMULATED DROP —', VIEW_W / 2, 26, {
+        size: 11, color: PAL.accent, alpha: 0.7 + Math.sin(this.t * 2.5) * 0.3,
+      })
+    }
     if (this.mode === 'descent') {
       const fast = lander.vy > SAFE_VY
       text(ctx, `▼ ${Math.max(0, Math.round(lander.vy))}`, VIEW_W - 40, 30, {

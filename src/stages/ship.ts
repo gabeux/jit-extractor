@@ -3,7 +3,7 @@ import { PAL } from '../palette'
 import { VIEW_W, VIEW_H, drawStars, drawPlanetArc, text, drawKeyHint } from '../render'
 import { promptAt } from '../ui/hud'
 import { sfx } from '../audio/sfx'
-import { patIntro, PAT_INTRO_KEY } from '../ui/patscript'
+import { patIntro, tutorialState, PAT_INTRO_KEY } from '../ui/patscript'
 
 // Orbit view: your ship above the spinning planet. Walk to the console, hit E.
 const FLOOR_Y = 330
@@ -28,15 +28,15 @@ export class ShipStage implements Stage {
   update(dt: number) {
     this.time += dt
     const input = this.game.input
-    // P.A.T. hails new Extractors once, ever — after the planet card settles
+    // P.A.T. hails until the tutorial is either taken or explicitly declined
     if (!this.introChecked && this.time > 1.4 && this.launching < 0 &&
-        this.game.runsCompleted === 0 && !this.game.dreamWake) {
+        this.game.runsCompleted === 0 && !this.game.dreamWake && !this.game.tutorial) {
       this.introChecked = true
-      let seen = false
-      try { seen = localStorage.getItem(PAT_INTRO_KEY) === '1' } catch { /* private mode */ }
-      if (!seen) {
+      if (tutorialState() === null) {
+        let seen = false
+        try { seen = localStorage.getItem(PAT_INTRO_KEY) === '1' } catch { /* private mode */ }
         try { localStorage.setItem(PAT_INTRO_KEY, '1') } catch { /* ok */ }
-        this.game.pat.show(patIntro())
+        this.game.pat.show(patIntro(this.game, seen))
       }
     }
     if (this.launching >= 0) {
@@ -174,6 +174,25 @@ export class ShipStage implements Stage {
   }
 
   private drawPod(ctx: CanvasRenderingContext2D, x: number, y: number) {
+    // tutorial drop: the pod is a hologram — nothing real leaves the ship
+    if (this.game.tutorial) {
+      ctx.save()
+      ctx.strokeStyle = PAL.accent
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([4, 3])
+      ctx.globalAlpha = 0.6 + Math.sin(this.time * 5) * 0.25
+      ctx.beginPath()
+      ctx.moveTo(x - 10, y + 14)
+      ctx.lineTo(x - 10, y - 2)
+      ctx.quadraticCurveTo(x, y - 14, x + 10, y - 2)
+      ctx.lineTo(x + 10, y + 14)
+      ctx.closePath()
+      ctx.stroke()
+      ctx.setLineDash([])
+      text(ctx, 'SIM', x, y + 28, { size: 8, color: PAL.accent, alpha: 0.8 })
+      ctx.restore()
+      return
+    }
     ctx.fillStyle = PAL.faint
     ctx.strokeStyle = PAL.pale
     ctx.lineWidth = 2

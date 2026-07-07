@@ -84,6 +84,18 @@ export class DockingStage implements Stage {
       this.quotaMet && propertyLeft > 0 ? 'QUOTA_MET_LEFT_EQUIPMENT' :
       this.quotaMet ? 'QUOTA_MET' :
       ore >= ORE_QUOTA / 2 ? 'QUOTA_HALF' : 'QUOTA_MISSED'
+
+    // simulated (tutorial) run: P.A.T. debriefs, nothing is recorded anywhere
+    if (w.simulated) {
+      this.game.endTutorial('done')
+      this.launchProbe = false
+      this.lines.push(
+        { t: 'P.A.T.: Simulation complete! You dropped, you mined, you made it back.', c: PAL.accent },
+        { t: 'The ledger below is display-only — corporate pays for REAL ore.', c: PAL.dim },
+        { t: 'Your first actual contract awaits. You are going to do great, Extractor.', c: PAL.good },
+      )
+      return
+    }
     sendRunEnd(this.ending)
 
     if (w.escapedInPirateShip) {
@@ -159,8 +171,9 @@ export class DockingStage implements Stage {
 
     const input = this.game.input
     if (this.phase === 'anim') {
-      // nothing extracted, nothing stolen = nothing worth a leaderboard line
-      const submittable = this.oreValue > 0 || this.salvageValue > 0
+      // nothing extracted, nothing stolen = nothing worth a leaderboard line —
+      // and simulated (tutorial) profits never touch the board
+      const submittable = !this.game.world?.simulated && (this.oreValue > 0 || this.salvageValue > 0)
       this.phase = submittable ? 'entry' : 'done'
       this.game.typingName = submittable
     }

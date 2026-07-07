@@ -64,7 +64,7 @@ export class Player extends Entity {
       if (allowShoot && input.mouseDown && !this.gAiming && this.shootCd <= 0) {
         const dx = aimX - this.gunX, dy = aimY - this.gunY
         const m = Math.hypot(dx, dy) || 1
-        w.spawn(new Projectile(this.gunX + (dx / m) * 12, this.gunY + (dy / m) * 12, (dx / m) * 700, (dy / m) * 700, 'player', 12, PAL.accent, this))
+        w.spawn(new Projectile(this.gunX + (dx / m) * 12, this.gunY + (dy / m) * 12, (dx / m) * 700, (dy / m) * 700, 'player', 12 * w.mods.dmgOut, PAL.accent, this))
         sfx.pew()
         this.shootCd = 0.16
         this.muzzleT = 0.05
@@ -73,7 +73,7 @@ export class Player extends Entity {
       if (input.isDown('KeyG') && this.grenCd <= 0) this.gHold += dt
       if (input.wasReleased('KeyG') && this.gHold > 0 && this.grenCd <= 0) {
         const { vx, vy, fuse } = this.throwVelocity()
-        const g = new Grenade(this.gunX, this.gunY, vx, vy, 'player', fuse, 52, 70, this)
+        const g = new Grenade(this.gunX, this.gunY, vx, vy, 'player', fuse, 52 * w.mods.dmgOut, 70, this)
         g.impact = this.gAiming // aimed throws detonate on contact
         w.spawn(g)
         sfx.drop()
@@ -99,6 +99,11 @@ export class Player extends Entity {
     if (m > 560) { vx *= 560 / m; vy *= 560 / m }
     return { vx, vy, fuse: 2.0 } // aimed throws are impact grenades, fuse unused
 
+  }
+
+  /** Incoming damage scaled by world mods (tutorial sim bruises less). */
+  damage(w: World, amt: number, src: Entity | null = null) {
+    super.damage(w, amt * w.mods.dmgIn, src)
   }
 
   protected onDamaged(_w: World, _src: Entity | null) {
