@@ -2,6 +2,7 @@ import type { Game, Stage } from '../game'
 import { PAL } from '../palette'
 import { VIEW_W, VIEW_H, text } from '../render'
 import { sfx } from '../audio/sfx'
+import { S } from '../i18n'
 
 function hash(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
@@ -71,7 +72,7 @@ export class WarpStage implements Stage {
     ctx.fill()
     ctx.globalAlpha = 1
 
-    text(ctx, `JUMPING TO ${this.game.planet.system} SYSTEM…`, VIEW_W / 2, 430, {
+    text(ctx, S().ship.jumping(this.game.planet.system), VIEW_W / 2, 430, {
       size: 12, color: PAL.accent, alpha: Math.min(1, this.t * 2),
     })
 
