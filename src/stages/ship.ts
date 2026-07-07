@@ -3,6 +3,7 @@ import { PAL } from '../palette'
 import { VIEW_W, VIEW_H, drawStars, drawPlanetArc, text, drawKeyHint } from '../render'
 import { promptAt } from '../ui/hud'
 import { sfx } from '../audio/sfx'
+import { patIntro, PAT_INTRO_KEY } from '../ui/patscript'
 
 // Orbit view: your ship above the spinning planet. Walk to the console, hit E.
 const FLOOR_Y = 330
@@ -18,6 +19,7 @@ export class ShipStage implements Stage {
   private walkPhase = 0
   private time = 0
   private launching = -1
+  private introChecked = false
 
   constructor(private game: Game) {}
 
@@ -26,6 +28,17 @@ export class ShipStage implements Stage {
   update(dt: number) {
     this.time += dt
     const input = this.game.input
+    // P.A.T. hails new Extractors once, ever — after the planet card settles
+    if (!this.introChecked && this.time > 1.4 && this.launching < 0 &&
+        this.game.runsCompleted === 0 && !this.game.dreamWake) {
+      this.introChecked = true
+      let seen = false
+      try { seen = localStorage.getItem(PAT_INTRO_KEY) === '1' } catch { /* private mode */ }
+      if (!seen) {
+        try { localStorage.setItem(PAT_INTRO_KEY, '1') } catch { /* ok */ }
+        this.game.pat.show(patIntro())
+      }
+    }
     if (this.launching >= 0) {
       this.launching += dt
       if (this.launching > 1.1) this.game.startDescent()

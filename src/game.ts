@@ -3,6 +3,7 @@ import type { MusicPlayer } from './audio/music'
 import { text } from './render'
 import { PAL } from './palette'
 import { Scoreboard } from './ui/scoreboard'
+import { PatDialogue } from './ui/dialogue'
 import { sendRunEnd } from './net/analytics'
 import { generatePlanet, type Planet } from './planetname'
 import { WarpStage } from './stages/warp'
@@ -29,6 +30,7 @@ export class Game {
   /** docking name-entry is capturing keys; TAB etc. must not react */
   typingName = false
   scoreboard = new Scoreboard()
+  pat = new PatDialogue()
   planet: Planet = { system: '', name: '' }
   stage: Stage
   private seed = Math.floor(Math.random() * 0x7fffffff)
@@ -104,9 +106,14 @@ export class Game {
     if (this.input.wasPressed('KeyB') && !this.typingName && !buildingContext) this.music.prev()
     if (this.music.creditT > 0) this.music.creditT -= dt
     // TAB leaderboard (pauses the sim while open)
-    if (this.input.wasPressed('Tab') && !this.typingName) this.scoreboard.toggle()
+    if (this.input.wasPressed('Tab') && !this.typingName && !this.pat.open) this.scoreboard.toggle()
     if (this.scoreboard.open) {
       this.scoreboard.update(this.input)
+      return
+    }
+    // P.A.T. communicator also pauses the sim and owns input while open
+    if (this.pat.open) {
+      this.pat.update(dt, this.input)
       return
     }
     // kill cam runs on real time regardless of sim slow-mo
@@ -121,6 +128,7 @@ export class Game {
     this.stage.draw(ctx)
     this.drawMusicCredit(ctx)
     this.scoreboard.draw(ctx)
+    this.pat.draw(ctx)
   }
 
   /** Cinematic "NOW PLAYING" fade, bottom-left, just above the HP pips. */
