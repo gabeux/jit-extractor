@@ -24,6 +24,8 @@ export class Pirate extends Entity {
   private retargetT = Math.random() * 0.4
   private strafeT = 0
   private strafeDir = 0
+  private blockedShots = 0 // consecutive shots fired into terrain
+  private repositionT = 0  // advancing for a better angle, holding fire
   target: Entity | null = null
   private personalAggro: Entity | null = null
   private lootGoal: OreDrop | null = null
@@ -45,6 +47,15 @@ export class Pirate extends Entity {
     if (this.retargetT <= 0) {
       this.retargetT = 0.35
       this.target = this.pickTarget(w)
+    }
+    // two shots into a hillside = stop shooting the hillside and go around it
+    if (this.repositionT > 0) {
+      this.repositionT -= dt
+      const t0 = this.target
+      if (t0 && !t0.dead) {
+        this.vx = Math.sign(t0.x - this.x) * 95
+        return
+      }
     }
     if (this.role === 'squad') {
       this.updateSquad(w)
@@ -209,9 +220,36 @@ export class Pirate extends Entity {
     return best
   }
 
+  /** Coarse terrain sample along the firing line. */
+  private hasLOS(w: World, t: Entity): boolean {
+    const x0 = this.x, y0 = this.y - 13
+    const steps = Math.ceil(Math.abs(t.cx - x0) / 18) + 1
+    for (let i = 1; i < steps; i++) {
+      const f = i / steps
+      if (y0 + (t.cy - y0) * f > w.terrain.heightAt(x0 + (t.cx - x0) * f) - 2) return false
+    }
+    return true
+  }
+
   private attack(w: World, t: Entity) {
     this.cooldown = (1.6 + Math.random() * 0.9) * this.cdScale
     const gx = this.x, gy = this.y - 13
+    // firing without line of sight is on-brand, but only twice — then either
+    // lob a grenade over the hill or move for a real angle
+    if (!(t instanceof Building) && !this.hasLOS(w, t)) {
+      this.blockedShots++
+      if (this.blockedShots >= 2) {
+        this.blockedShots = 0
+        if (Math.random() < 0.3) {
+          const T = 1.1
+          w.spawn(new Grenade(gx, gy, (t.x - gx) / T, (t.cy - gy) / T - 0.5 * 900 * T, 'pirate', 1.6, 40, 65, this))
+          sfx.drop()
+          return
+        }
+        this.repositionT = 1.2 + Math.random() * 0.8
+        return
+      }
+    } else this.blockedShots = 0
     if (Math.random() < 0.02) {
       // the dreaded 2% grenade
       const T = 0.9

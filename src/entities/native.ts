@@ -7,6 +7,7 @@ import { PAL } from '../palette'
 import { sfx } from '../audio/sfx'
 
 const LEASH = 520
+const LUNGE_DUR = 0.38
 
 export class Native extends Entity {
   campX: number
@@ -17,6 +18,7 @@ export class Native extends Entity {
   private attackCd = 0
   private lungeT = 0
   private lungeDir = 1
+  private standing = false // hysteresis: don't flap between walk/stop at the range edge
   private retargetT = Math.random() * 0.4
   target: Entity | null = null
   private personalAggro: Entity | null = null
@@ -38,18 +40,29 @@ export class Native extends Entity {
     if (this.lungeT > 0) this.lungeT -= dt
     this.retargetT -= dt
     if (this.retargetT <= 0) {
-      this.retargetT = 0.4
-      this.target = this.pickTarget(w)
+      // sticky targeting: a committed target doesn't flip-flop with every step
+      const cur = this.target
+      const keep = cur && !cur.dead && dist(this.x, this.y, cur.x, cur.y) < 460
+      this.target = keep ? cur : this.pickTarget(w)
+      this.retargetT = keep ? 1.2 : 0.4
     }
     const t = this.target
     if (t && !t.dead && (this.vengeful || Math.abs(this.x - this.campX) < LEASH)) {
       const dx = t.x - this.x
-      // close to spear range, then STOP — don't stand inside the target
-      this.vx = Math.abs(dx) > 26 ? Math.sign(dx) * 170 : 0
+      // walk in to spear range, then STAND until the gap really reopens —
+      // the two thresholds stop the walk/stop shake at the range edge
+      if (this.lungeT > 0) this.vx = 0 // feet planted mid-lunge
+      else if (Math.abs(dx) > (this.standing ? 44 : 26)) {
+        this.standing = false
+        this.vx = Math.sign(dx) * 170
+      } else {
+        this.standing = true
+        this.vx = 0
+      }
       if (Math.abs(dx) < 34 && Math.abs(t.cy - this.cy) < 38 && this.attackCd <= 0) {
         t.damage(w, 10, this)
         this.attackCd = 1.0
-        this.lungeT = 0.2
+        this.lungeT = LUNGE_DUR
         this.lungeDir = Math.sign(dx) || 1
         sfx.spear()
       }
@@ -94,9 +107,20 @@ export class Native extends Entity {
   protected onDamaged(w: World, src: Entity | null) {
     if (src && src.faction !== 'native') {
       this.personalAggro = src
+      this.target = src // whoever just stabbed/shot us outranks stickiness
+      this.retargetT = 1.2
       if (src.faction === 'player') w.declareWar('native', 'player')
       if (src.faction === 'pirate') w.declareWar('native', 'pirate')
     }
+  }
+
+  /** Attack motion: jab out fast, overshoot back past the start, settle. */
+  private lungeOffset(): number {
+    if (this.lungeT <= 0) return 0
+    const p = 1 - this.lungeT / LUNGE_DUR
+    if (p < 0.35) return (p / 0.35) * 12
+    if (p < 0.7) return 12 - ((p - 0.35) / 0.35) * 17
+    return -5 + ((p - 0.7) / 0.3) * 5
   }
 
   protected onDeath(w: World, src: Entity | null) {
@@ -106,8 +130,9 @@ export class Native extends Entity {
   }
 
   draw(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
-    // attack lunge: dart toward the target and snap back
-    const lunge = this.lungeT > 0 ? Math.sin((1 - this.lungeT / 0.2) * Math.PI) * 8 * this.lungeDir : 0
+    // attack lunge: dart toward the target, recoil back, settle
+    const off = this.lungeOffset()
+    const lunge = off * this.lungeDir
     const sx = this.x - camX + lunge, sy = this.y - camY
     const c = this.flashT > 0 ? PAL.white : PAL.native
     ctx.strokeStyle = c
@@ -121,11 +146,12 @@ export class Native extends Entity {
     ctx.beginPath()
     ctx.arc(sx, sy - 19, 3.5, 0, Math.PI * 2)
     ctx.fill()
-    // spear held diagonally
+    // spear: carried diagonally, levels into a horizontal jab mid-lunge
     const dir = this.target && !this.target.dead ? Math.sign(this.target.x - this.x) || 1 : 1
+    const jab = Math.max(0, off) / 12
     ctx.beginPath()
-    ctx.moveTo(sx - dir * 5, sy - 6)
-    ctx.lineTo(sx + dir * 9, sy - 22)
+    ctx.moveTo(sx - dir * (5 - jab * 2), sy - 6 - jab * 5)
+    ctx.lineTo(sx + dir * (9 + jab * 7), sy - 22 + jab * 9)
     ctx.stroke()
   }
 }
