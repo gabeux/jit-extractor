@@ -7,6 +7,7 @@ import { PatDialogue } from './ui/dialogue'
 import { Tutorial, SIM_MODS } from './tutorial/tutorial'
 import { setTutorialState } from './ui/patscript'
 import { sendRunEnd } from './net/analytics'
+import { setWeatherAmbience } from './audio/sfx'
 import { generatePlanet, type Planet } from './planetname'
 import { WarpStage } from './stages/warp'
 import { World } from './world/world'
@@ -48,16 +49,23 @@ export class Game {
   private setStage(s: Stage) {
     this.stage = s
     s.enter()
+    // weather ambience follows the planet stages, silence everywhere else
+    const AMB: Record<string, number> = { clear: 0, wind: 0.015, rain: 0.028, hail: 0.032, storm: 0.04 }
+    const onPlanet = s.name === 'descent' || s.name === 'ascent' || s.name === 'ground'
+    setWeatherAmbience(onPlanet && this.world ? AMB[this.world.weather] : 0)
   }
 
   startDescent() {
     this.dreamWake = false // whatever it was, work resumes
     this.runStartMs = performance.now()
-    this.world = generateWorld(this.seed)
+    this.world = generateWorld(this.seed, this.runsCompleted)
     if (this.tutorial) {
       this.world.simulated = true
       this.world.mods = { ...SIM_MODS }
       this.world.peaceful = true // calm until the scripted wave step
+      this.world.weather = 'clear' // minimal stimulation in training
+      this.world.windX = 0
+      this.world.quota = 200
       this.world.lander.maxHp *= 2
       this.world.lander.hp = this.world.lander.maxHp
     }

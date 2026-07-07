@@ -80,6 +80,7 @@ export class FlightStage implements Stage {
     } else {
       this.zHold = 0
     }
+    lander.vx += w.windX * 0.25 * dt // weather leans on the hull
     lander.vx *= 1 - 0.5 * dt
     lander.vx = clamp(lander.vx, -260, 260)
     lander.vy = clamp(lander.vy, -320, 420)
@@ -167,6 +168,10 @@ export class FlightStage implements Stage {
     // HUD
     labeledBar(ctx, 14, 24, 120, lander.fuel / 100, 'FUEL', lander.fuel < 25 ? PAL.danger : PAL.warm)
     labeledBar(ctx, 14, 48, 120, lander.hp / lander.maxHp, 'HULL', lander.hp < 120 ? PAL.danger : PAL.pale)
+    if (w.weather !== 'clear') {
+      const wx = { wind: 'STRONG WINDS', rain: 'RAIN', hail: 'HAIL', storm: 'THUNDERSTORM' }[w.weather]
+      text(ctx, `WX: ${wx}`, 14, 96, { size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'left' })
+    }
     // overweight readout: thrust-to-weight sinks as cargo passes 200 ore
     const over = Math.max(0, Math.round(lander.ore) - 200)
     if (over > 0) {

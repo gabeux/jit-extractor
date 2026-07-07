@@ -9,7 +9,7 @@ import { Drone } from '../entities/drone'
 import { Pirate } from '../entities/pirate'
 import { Flare } from '../entities/pirateship'
 import { FlarePickup } from '../entities/loot'
-import { WORLD_W, ORE_QUOTA, MIN_LAUNCH_FUEL } from '../world/world'
+import { WORLD_W, MIN_LAUNCH_FUEL } from '../world/world'
 import { sfx } from '../audio/sfx'
 import { TUT } from '../ui/patscript'
 
@@ -130,7 +130,7 @@ export class GroundStage implements Stage {
     }
 
     // a full cargo bay next to a warm lander is exactly what pirates wait for
-    if (nearLander && lander.ore >= ORE_QUOTA) w.triggerShipEvent(null)
+    if (nearLander && lander.ore >= w.quota) w.triggerShipEvent(null)
 
     w.update(dt)
 
@@ -422,6 +422,9 @@ export class GroundStage implements Stage {
   }
 
   private drawPromptsAndMenu(ctx: CanvasRenderingContext2D, w: World, camX: number, camY: number) {
+    // a blocking P.A.T. briefing owns the screen: prompts and the rack UI
+    // underneath just look broken while the sim is paused
+    if (this.game.pat.blocking) return
     const { player, lander } = w
     const nearLander = Math.abs(player.x - lander.x) < 76 && Math.abs(player.y - lander.y) < 70
 
@@ -491,7 +494,7 @@ export class GroundStage implements Stage {
           if (selected) text(ctx, ITEM_NAMES[inv[i].kind], cx, r.y - 6, { size: 10, color: PAL.accent })
         } else {
           const ready = lander.fuel >= MIN_LAUNCH_FUEL
-          const quotaMet = lander.ore >= ORE_QUOTA
+          const quotaMet = lander.ore >= w.quota
           ctx.fillStyle = ready ? (quotaMet ? PAL.good : PAL.warm) : PAL.dim
           ctx.beginPath()
           ctx.moveTo(cx - 8, r.y + 24)
@@ -570,8 +573,8 @@ export class GroundStage implements Stage {
     ctx.fillRect(14, 507, 97, 4)
     ctx.fillStyle = player.stamina < 25 ? PAL.warm : PAL.accent
     ctx.fillRect(14, 507, 97 * (player.stamina / 100), 4)
-    const oreDone = lander.ore >= ORE_QUOTA
-    text(ctx, `ORE ${Math.min(999, Math.round(lander.ore))}/${ORE_QUOTA}`, VIEW_W - 16, 26, {
+    const oreDone = lander.ore >= w.quota
+    text(ctx, `ORE ${Math.min(999, Math.round(lander.ore))}/${w.quota}`, VIEW_W - 16, 26, {
       size: 13, color: oreDone ? PAL.good : PAL.pale, align: 'right',
     })
     text(ctx, `FUEL ${Math.round(lander.fuel)}`, VIEW_W - 16, 44, {
@@ -583,6 +586,13 @@ export class GroundStage implements Stage {
       size: 13, color: proj >= 0 ? PAL.good : PAL.danger, align: 'right',
     })
     let hudY = 80
+    if (w.weather !== 'clear') {
+      const wx = { wind: 'STRONG WINDS', rain: 'RAIN', hail: 'HAIL', storm: 'THUNDERSTORM' }[w.weather]
+      text(ctx, `WX: ${wx}`, VIEW_W - 16, hudY, {
+        size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'right',
+      })
+      hudY += 18
+    }
     if (Math.round(lander.ore) > 200) {
       text(ctx, `OVERWEIGHT +${Math.round(lander.ore) - 200} · Z VENT`, VIEW_W - 16, hudY, {
         size: 10, color: PAL.warm, align: 'right',

@@ -5,7 +5,6 @@ import { Building } from '../entities/buildings'
 import { Drone } from '../entities/drone'
 import { Animal } from '../entities/animal'
 import { Native } from '../entities/native'
-import { ORE_QUOTA } from '../world/world'
 import { LOADOUT, EQUIPMENT_COST } from '../entities/lander'
 import { getCallsign, setCallsign, submitScore, recordPersonalBest, type SubmitResult } from '../net/leaderboard'
 import { sendRunEnd } from '../net/analytics'
@@ -53,7 +52,7 @@ export class DockingStage implements Stage {
     this.oreValue = ore * 10
     // fuel is a bonus on SUCCESSFUL runs, not a business model: touch-and-go
     // "runs" that never mined pay nothing for a full tank
-    const quotaDone = ore >= ORE_QUOTA
+    const quotaDone = ore >= w.quota
     this.fuelValue = quotaDone && !w.escapedInPirateShip ? fuel * 10 : 0
     this.fieldValue = Math.round(w.money)
     // equipment audit: anything not back in the bay is billed — destroyed,
@@ -76,7 +75,7 @@ export class DockingStage implements Stage {
     this.profit = this.oreValue + this.fuelValue + this.fieldValue + this.equipValue + this.salvageValue
     // pirate-ship escapes count on BOTH boards: quota or not, corporate
     // clocks a completed extraction the moment the salvage docks
-    this.quotaMet = ore >= ORE_QUOTA || w.escapedInPirateShip
+    this.quotaMet = ore >= w.quota || w.escapedInPirateShip
     this.timeMs = this.game.runTimeMs()
     this.nameBuf = getCallsign()
 
@@ -86,7 +85,7 @@ export class DockingStage implements Stage {
       this.quotaMet && propertyLeft === 0 && w.nativesKilledByPlayer === 0 ? 'QUOTA_MET_PERFECTLY' :
       this.quotaMet && propertyLeft > 0 ? 'QUOTA_MET_LEFT_EQUIPMENT' :
       this.quotaMet ? 'QUOTA_MET' :
-      ore >= ORE_QUOTA / 2 ? 'QUOTA_HALF' : 'QUOTA_MISSED'
+      ore >= w.quota / 2 ? 'QUOTA_HALF' : 'QUOTA_MISSED'
 
     // simulated (tutorial) run: no ledger, no records — draw() shows the
     // TRAINING RUN COMPLETE card instead
@@ -96,6 +95,12 @@ export class DockingStage implements Stage {
       return
     }
     sendRunEnd(this.ending)
+    // veterancy: from the tenth contract on, the debrief salutes (and we
+    // remember it, in case future builds want to reward it)
+    if (this.game.runsCompleted + 1 >= 10) {
+      this.lines.push({ t: "★ You're a seasoned dropper.", c: '#e8c35a' })
+      try { localStorage.setItem('jit-seasoned-v1', '1') } catch { /* ok */ }
+    }
 
     if (w.escapedInPirateShip) {
       this.launchProbe = false
@@ -130,7 +135,7 @@ export class DockingStage implements Stage {
         { t: "We're processing your payment - delivery probe has been launched.", c: PAL.accent },
         { t: 'Feel free to launch and fulfill the next quota.', c: PAL.accent },
       )
-    } else if (ore >= ORE_QUOTA / 2) {
+    } else if (ore >= w.quota / 2) {
       this.lines.push(
         { t: 'Half a quota, Extractor. We are processing half a payment.', c: PAL.accent },
         { t: 'Delivery probe launched. HQ notices these things.', c: PAL.dim },
@@ -305,8 +310,8 @@ export class DockingStage implements Stage {
       if (this.t > 2.8) {
         text(ctx, 'TRAINING RUN COMPLETE', VIEW_W / 2, 258, { size: 24, color: PAL.good })
         const congrats = [
-          'Congratulations on finishing the training sim. The company is excited',
-          'in the opportunities for profit after your upskilling session.',
+          'Congratulations on finishing the training sim.',
+          'The company looks forward to profiting with you.',
         ]
         let budget = Math.floor((this.t - 3.1) * 55)
         let cy = 292

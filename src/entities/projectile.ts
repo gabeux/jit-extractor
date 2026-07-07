@@ -81,6 +81,7 @@ export class Grenade extends Entity {
   update(w: World, dt: number) {
     this.age += dt
     this.vy += 900 * dt
+    this.vx += w.windX * 0.5 * dt // grenades sail with the weather
     this.x += this.vx * dt
     this.y += this.vy * dt
     const armed = this.age > 0.12

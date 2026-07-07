@@ -13,6 +13,7 @@ const CARRY_MAX = 30
 export class Drone extends Entity {
   carrying = 0
   deconstructT = 0 // hold-E recall, same interaction as buildings
+  turbo = false    // lightning-struck: twice the speed, same tinfoil
   private phase: 'up' | 'across' | 'down' | 'act' = 'up'
   private target: Building | null = null
   private actT = 0
@@ -48,20 +49,22 @@ export class Drone extends Entity {
     const destX = this.carrying > 0 ? home.x : this.target ? this.target.x : home.x
     const destY = (this.carrying > 0 ? home.y - 52 : this.target ? this.target.y - 44 : home.y - 70)
     const cruiseY = Math.min(w.terrain.heightAt(this.x), w.terrain.heightAt(destX)) - 130
+    const sp = this.turbo ? SPEED * 2 : SPEED
+    if (this.turbo && Math.random() < 0.12) w.burst(this.x, this.y, 1, PAL.accent, 30)
 
     this.vx = 0; this.vy = 0
     switch (this.phase) {
       case 'up':
-        if (this.y > cruiseY) this.vy = -SPEED
+        if (this.y > cruiseY) this.vy = -sp
         else this.phase = 'across'
         break
       case 'across':
-        if (Math.abs(destX - this.x) > 6) this.vx = Math.sign(destX - this.x) * SPEED
+        if (Math.abs(destX - this.x) > 6) this.vx = Math.sign(destX - this.x) * sp
         else this.phase = 'down'
         break
       case 'down':
         if (Math.abs(destX - this.x) > 40) { this.phase = 'up'; break } // target moved/died
-        if (this.y < destY) this.vy = SPEED * 0.8
+        if (this.y < destY) this.vy = sp * 0.8
         else { this.phase = 'act'; this.actT = 0 }
         break
       case 'act': {
@@ -83,7 +86,7 @@ export class Drone extends Entity {
         } else if (!this.target) {
           // no extractors to service: come home and set down
           if (Math.abs(home.x - this.x) > 70) this.phase = 'up'
-          else if (this.y < w.terrain.heightAt(this.x) - 8) this.vy = SPEED * 0.5
+          else if (this.y < w.terrain.heightAt(this.x) - 8) this.vy = sp * 0.5
           // else: parked next to the lander
         } else if (this.actT > 1.2) {
           this.phase = 'up'
@@ -113,7 +116,7 @@ export class Drone extends Entity {
 
   draw(ctx: CanvasRenderingContext2D, camX: number, camY: number, w: World) {
     const sx = this.x - camX, sy = this.y - camY
-    const c = this.flashT > 0 ? PAL.white : PAL.pale
+    const c = this.flashT > 0 ? PAL.white : this.turbo ? PAL.accent : PAL.pale
     ctx.fillStyle = c
     ctx.strokeStyle = c
     ctx.lineWidth = 2

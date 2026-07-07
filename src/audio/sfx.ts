@@ -50,6 +50,43 @@ function noise(duration: number, peak = 1, lowpass = 1200) {
   src.start()
 }
 
+// Weather ambience: one looping filtered-noise bed, gain-faded per weather.
+// Deliberately very quiet — atmosphere, not a soundtrack.
+let ambSrc: AudioBufferSourceNode | null = null
+let ambGain: GainNode | null = null
+export function setWeatherAmbience(level: number) {
+  if (!ctx || !master) return
+  if (level <= 0) {
+    if (ambGain) ambGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.6)
+    if (ambSrc) {
+      const s = ambSrc
+      setTimeout(() => { try { s.stop() } catch { /* already stopped */ } }, 900)
+      ambSrc = null
+      ambGain = null
+    }
+    return
+  }
+  if (!ambSrc) {
+    const len = ctx.sampleRate * 2
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+    ambSrc = ctx.createBufferSource()
+    ambSrc.buffer = buf
+    ambSrc.loop = true
+    const f = ctx.createBiquadFilter()
+    f.type = 'lowpass'
+    f.frequency.value = 550
+    ambGain = ctx.createGain()
+    ambGain.gain.value = 0.0001
+    ambSrc.connect(f)
+    f.connect(ambGain)
+    ambGain.connect(master)
+    ambSrc.start()
+  }
+  ambGain!.gain.linearRampToValueAtTime(level, ctx.currentTime + 0.8)
+}
+
 // Optional meme: drop a scream at public/sfx/wilhelm.mp3 and it plays
 // (very quietly) when the lander squashes someone. Missing file = silence.
 let wilhelmEl: HTMLAudioElement | null = null
@@ -82,4 +119,5 @@ export const sfx = {
   alarm: () => { tone('square', 520, 520, 0.1, 0.4); setTimeout(() => tone('square', 390, 390, 0.12, 0.4), 120) },
   eat: () => noise(0.15, 0.3, 900),
   die: () => { tone('sawtooth', 300, 40, 0.5, 0.7); noise(0.4, 0.6, 900) },
+  thunder: () => { noise(1.4, 0.5, 260); tone('sine', 60, 28, 1.6, 0.45) },
 }

@@ -4,6 +4,7 @@ import { Projectile } from '../entities/projectile'
 import { Player } from '../entities/player'
 import { Lander } from '../entities/lander'
 import { Building, Crate } from '../entities/buildings'
+import { Drone } from '../entities/drone'
 import { Animal } from '../entities/animal'
 import { Native } from '../entities/native'
 import { DropPod } from '../entities/droppod'
@@ -15,8 +16,16 @@ import { PAL } from '../palette'
 import { sfx } from '../audio/sfx'
 
 export const WORLD_W = 3600
-export const ORE_QUOTA = 200
+export const ORE_QUOTA = 200 // the baseline; each world rolls its own quota
 export const MIN_LAUNCH_FUEL = 40
+
+export type Weather = 'clear' | 'wind' | 'rain' | 'hail' | 'storm'
+
+// tiny stateless hash for precipitation streaks (rng must stay untouched)
+function whash(n: number): number {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
+  return s - Math.floor(s)
+}
 
 export interface GrassTuft { x: number; eaten: boolean; regrowT: number }
 export interface ResourceNode { x: number; taken: boolean }
@@ -50,6 +59,13 @@ export class World {
   /** Global pirate grenade throttle so stacked pirates can't nade-spam. */
   pirateGrenadeCd = 0
 
+  // per-contract conditions, rolled in worldgen
+  quota = ORE_QUOTA
+  weather: Weather = 'clear'
+  windX = 0
+  private strikeT = 8
+  private bolts: { x: number; gy: number; t: number }[] = []
+
   // pirate raid state (triggered by player kills)
   private raidQueued = false
   private raidCountdown = -1
@@ -75,6 +91,7 @@ export class World {
   // shoot down your own rescue while stranded and the planet responds
   meteorStorm = false
   private meteorT = 0
+  private meteorStormT = 0 // the storm only escalates
 
   // multikill cam: set on 2+ player kills in a tight window, ticked by Game
   killCam: { x: number; y: number; count: number; t: number } | null = null
@@ -352,15 +369,31 @@ export class World {
     }
     if (this.pirateShip?.dead) this.pirateShip = null
 
-    // meteor storm: closes in on the player, never lets up
+    // meteor storm: closes in on the player, never lets up — and over the
+    // next minute the sky loses its patience entirely, sending trackers
     if (this.meteorStorm) {
+      this.meteorStormT += dt
       this.meteorT -= dt
       if (this.meteorT <= 0) {
-        this.meteorT = range(this.rng, 0.35, 0.9)
+        const heat = Math.min(1, this.meteorStormT / 60)
+        this.meteorT = range(this.rng, 0.35, 0.9) * (1 - 0.85 * heat)
         const tx = Math.max(40, Math.min(WORLD_W - 40, this.player.x + range(this.rng, -1, 1) * 340))
-        this.spawn(new Meteor(tx, this.terrain.heightAt(tx)))
+        const m = new Meteor(tx, this.terrain.heightAt(tx))
+        if (this.rng() < 0.12 + 0.5 * heat) m.homing = true
+        this.spawn(m)
       }
     }
+
+    // thunderstorms strike things; trees are natural lightning rods
+    if (this.weather === 'storm') {
+      this.strikeT -= dt
+      if (this.strikeT <= 0) {
+        this.strikeT = range(this.rng, 6, 14)
+        this.lightningStrike()
+      }
+    }
+    for (const b of this.bolts) b.t -= dt
+    this.bolts = this.bolts.filter((b) => b.t > 0)
 
     // periodic faction-wide native hunt (not in the sim: minimal stimulation)
     if (this.time > this.nextHuntAt && !this.simulated) {
@@ -380,6 +413,47 @@ export class World {
     }
 
     this.shake = Math.max(0, this.shake - dt * 22)
+  }
+
+  /** Storm strike: mostly scenery, occasionally an upgrade nobody asked for. */
+  private lightningStrike() {
+    interface Mark { x: number; hit: () => void }
+    const marks: Mark[] = []
+    const addN = (n: number, m: Mark) => { for (let i = 0; i < n; i++) marks.push(m) }
+    for (const tr of this.trees) {
+      addN(3, { x: tr.x, hit: () => {
+        this.trees = this.trees.filter((t2) => t2 !== tr)
+        this.burst(tr.x, this.terrain.heightAt(tr.x) - 20, 14, PAL.warm, 140)
+      } })
+    }
+    for (const e of this.entities) {
+      if (e.dead) continue
+      if (e instanceof Building) {
+        addN(1, { x: e.x, hit: () => {
+          if (e.item.kind === 'turret' && !e.turbo) {
+            e.turbo = true
+            this.addFloater(e.x, e.cy - 26, 'TURBO TURRET', PAL.accent)
+          } else e.damage(this, 35, null)
+        } })
+      } else if (e instanceof Drone) {
+        addN(1, { x: e.x, hit: () => {
+          if (!e.turbo) {
+            e.turbo = true
+            this.addFloater(e.x, e.y - 18, 'TURBO DRONE', PAL.accent)
+          } else e.damage(this, 25, null)
+        } })
+      } else if (e === (this.player as Entity) && !this.player.inLander) {
+        addN(1, { x: e.x, hit: () => e.damage(this, 25, null) })
+      }
+    }
+    addN(6, { x: range(this.rng, 60, WORLD_W - 60), hit: () => { /* empty ground */ } })
+    const m = marks[irange(this.rng, 0, marks.length - 1)]
+    const gy = this.terrain.heightAt(m.x)
+    this.bolts.push({ x: m.x, gy, t: 0.28 })
+    this.burst(m.x, gy - 6, 12, PAL.accent, 150)
+    this.shake = Math.max(this.shake, 6)
+    sfx.thunder()
+    m.hit()
   }
 
   private spawnRaid() {
@@ -464,6 +538,63 @@ export class World {
         ctx.fill()
         ctx.globalAlpha = 1
       }
+    }
+
+    // precipitation (screen-space streaks; deterministic, rng untouched)
+    if (this.weather === 'rain' || this.weather === 'hail' || this.weather === 'storm') {
+      ctx.save()
+      const hail = this.weather === 'hail'
+      ctx.strokeStyle = PAL.accent
+      ctx.fillStyle = PAL.white
+      ctx.globalAlpha = hail ? 0.5 : 0.3
+      ctx.lineWidth = 1
+      const fall = hail ? 500 : 660
+      for (let i = 0; i < 70; i++) {
+        const px = (((whash(i) * 4200 + this.time * this.windX * 1.5) % viewW) + viewW) % viewW
+        const py = (((whash(i + 99) * 2600 + this.time * fall) % viewH) + viewH) % viewH
+        if (hail) ctx.fillRect(px - 1, py - 1, 2.5, 2.5)
+        else {
+          ctx.beginPath()
+          ctx.moveTo(px, py)
+          ctx.lineTo(px - this.windX * 0.03, py - 9)
+          ctx.stroke()
+        }
+      }
+      ctx.restore()
+    } else if (this.weather === 'wind') {
+      ctx.save()
+      ctx.strokeStyle = PAL.dim
+      ctx.globalAlpha = 0.3
+      ctx.lineWidth = 1
+      for (let i = 0; i < 16; i++) {
+        const px = (((whash(i) * 3800 + this.time * this.windX * 4) % viewW) + viewW) % viewW
+        const py = whash(i + 7) * viewH
+        ctx.beginPath()
+        ctx.moveTo(px, py)
+        ctx.lineTo(px - Math.sign(this.windX) * 12, py)
+        ctx.stroke()
+      }
+      ctx.restore()
+    }
+
+    // lightning bolts + sky flash
+    for (const b of this.bolts) {
+      const a = b.t / 0.28
+      ctx.save()
+      ctx.strokeStyle = PAL.white
+      ctx.globalAlpha = a
+      ctx.lineWidth = 2.5
+      ctx.beginPath()
+      ctx.moveTo(b.x - camX + (Math.random() - 0.5) * 8, 0)
+      for (let y = camY + 50; y < b.gy - 30; y += 46) {
+        ctx.lineTo(b.x - camX + (Math.random() - 0.5) * 34, y - camY)
+      }
+      ctx.lineTo(b.x - camX, b.gy - camY)
+      ctx.stroke()
+      ctx.globalAlpha = a * 0.15
+      ctx.fillStyle = PAL.white
+      ctx.fillRect(0, 0, viewW, viewH)
+      ctx.restore()
     }
 
     ctx.textAlign = 'center'

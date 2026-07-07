@@ -44,6 +44,12 @@ export class Crate extends Entity {
     this.stepPhysics(w, dt)
   }
 
+  /** Sim fuel gens can't be lost — the stranded path doesn't exist there. */
+  damage(w: World, amt: number, src: Entity | null = null) {
+    if (w.simulated && this.item.kind === 'fuelgen') return
+    super.damage(w, amt, src)
+  }
+
   draw(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
     drawCrate(ctx, this.x - camX, this.y - camY, this.flashT > 0)
   }
@@ -65,6 +71,7 @@ export class Building extends Entity {
   item: CrateItem
   node: ResourceNode | null // drills occupy a node
   deconstructT = 0          // player's hold-E progress, managed by ground stage
+  turbo = false             // lightning-blessed turret: laser pulses, double rate
   private cooldown = 0
   private puffT = 0
 
@@ -98,14 +105,23 @@ export class Building extends Entity {
         if (target) {
           const dx = target.cx - this.x, dy = target.cy - (this.y - 14)
           const m = Math.hypot(dx, dy) || 1
-          w.spawn(new Projectile(this.x + (dx / m) * 12, this.y - 14 + (dy / m) * 12, (dx / m) * 620, (dy / m) * 620, 'player', 14, PAL.accent, this, 15, 3.5))
+          const spd = this.turbo ? 950 : 620
+          w.spawn(new Projectile(this.x + (dx / m) * 12, this.y - 14 + (dy / m) * 12,
+            (dx / m) * spd, (dy / m) * spd, 'player',
+            this.turbo ? 28 : 14, this.turbo ? PAL.white : PAL.accent, this, 15, 3.5))
           sfx.turret()
-          this.cooldown = 0.8
+          this.cooldown = this.turbo ? 0.4 : 0.8
         } else {
           this.cooldown = 0.15
         }
       }
     }
+  }
+
+  /** Sim fuel gens are invincible — the stranded path doesn't exist there. */
+  damage(w: World, amt: number, src: Entity | null = null) {
+    if (w.simulated && this.item.kind === 'fuelgen') return
+    super.damage(w, amt, src)
   }
 
   protected onDeath(w: World, _src: Entity | null) {
@@ -147,6 +163,12 @@ export class Building extends Entity {
       }
     } else {
       // turret: base + barrel toward last known threat side
+      if (this.turbo) {
+        // lightning-blessed: charged tip blip
+        ctx.fillStyle = PAL.accent
+        ctx.fillRect(sx - 2, sy - 30 + Math.sin(w.time * 6) * 2, 4, 4)
+        ctx.fillStyle = flash ? PAL.white : PAL.faint
+      }
       ctx.fillRect(sx - 8, sy - 14, 16, 14)
       ctx.strokeRect(sx - 8, sy - 14, 16, 14)
       ctx.beginPath()

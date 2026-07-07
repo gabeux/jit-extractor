@@ -1,10 +1,12 @@
-import { Entity } from './entity'
+import { Entity, clamp } from './entity'
 import type { World } from '../world/world'
 import { PAL } from '../palette'
 
 // Divine punishment for shooting down your own rescue. Falls until it
 // finds ground (or you), then makes a very strong argument.
 export class Meteor extends Entity {
+  /** late-storm meteors bend toward the player like committed missiles */
+  homing = false
   private spin = Math.random() * Math.PI * 2
   private size = 7 + Math.random() * 7
 
@@ -21,10 +23,14 @@ export class Meteor extends Entity {
   }
 
   update(w: World, dt: number) {
+    if (this.homing && !w.player.dead) {
+      const lead = w.player.x + w.player.vx * 0.25
+      this.vx = clamp(this.vx + Math.sign(lead - this.x) * 300 * dt, -360, 360)
+    }
     this.x += this.vx * dt
     this.y += this.vy * dt
     this.spin += dt * 6
-    w.burst(this.x, this.y - 8, 1, Math.random() < 0.6 ? PAL.warm : PAL.danger, 40)
+    w.burst(this.x, this.y - 8, 1, this.homing || Math.random() > 0.6 ? PAL.danger : PAL.warm, 40)
     const gy = w.terrain.heightAt(this.x)
     if (this.y >= gy) {
       this.dead = true
@@ -38,7 +44,7 @@ export class Meteor extends Entity {
     ctx.translate(sx, sy)
     ctx.rotate(this.spin)
     ctx.fillStyle = PAL.terrainDeep
-    ctx.strokeStyle = PAL.warm
+    ctx.strokeStyle = this.homing ? PAL.danger : PAL.warm
     ctx.lineWidth = 2
     const s = this.size
     ctx.beginPath()
