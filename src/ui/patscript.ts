@@ -30,8 +30,8 @@ export function patIntro(game: Game, returning: boolean): DialogueNode {
         label: 'Teach me the ropes.',
         onPick: () => game.beginTutorial(),
         next: {
-          text: "Excellent choice! Booting SIMULATED DROP: same planet, friendlier physics - you hit harder, bruise less, mine faster and sip fuel. None of it counts, so relax and follow my lead. To the launch console, Extractor!",
-          choices: [{ label: "Let's do it." }],
+          text: "Excellent choice! Booting SIMULATED DROP: conditions will be easier than what you'll encounter in the real world, but should be enough to get you started. To the launch console!",
+          choices: [{ label: "Let's do this." }],
         },
       },
       {
@@ -53,10 +53,10 @@ export function patIntro(game: Game, returning: boolean): DialogueNode {
 // ---- Tutorial step texts (hints are non-blocking; keep them ~4 lines) ----
 
 export const TUT = {
-  board: "That console runs the pre-drop checks. Walk over and press [E] whenever you're ready, Extractor.",
+  board: "That console runs the pre-drop checks. Walk over and press [E] whenever you're ready.",
   flightIntro: {
-    text: "Lander controls: [W] burns the main thruster, [A]/[D] steer. Gravity is patient; your hull is not. Keep the ▼ speed number GREEN near the ground, and aim for flat terrain.",
-    choices: [{ label: 'Got it.' }],
+    text: "Lander controls: [W] burns the main thruster, [A]/[D] to steer with reaction thrusters. To the write of your control dashboard, keep the ▼ speed number GREEN near the ground, and aim for flat terrain. Our lander won't survive a free fall.",
+    choices: [{ label: 'It got this.' }, { label: "I''m scared." }],
   } as DialogueNode,
   descent: "Easy does it - short taps of [W]. Green ▼ number = survivable landing. Flat ground = happy lander.",
   groundIntro: {

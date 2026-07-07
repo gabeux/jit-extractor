@@ -43,6 +43,8 @@ export class PatDialogue {
   private shownChars = 0
   private sel = 0
   private lines: string[] = []
+  private panelW = 350 // shrunk to fit content once the text is measured
+  private tabletScale = 1 // P.A.T. gets smaller on short hints
   private choiceBoxes: DOMRect[] = []
   private portrait: HTMLImageElement | null = null
   private off = document.createElement('canvas')
@@ -98,10 +100,23 @@ export class PatDialogue {
   }
 
   private panelSize(): [number, number] {
-    const w = this.hintMode ? 350 : 430
-    const textLines = Math.max(2, this.lines.length || Math.ceil((this.node?.text.length ?? 0) / 48))
-    const right = textLines * LINE_H + 8 + (this.node?.choices.length ?? 0) * CHOICE_H
-    return [w, Math.max(TABLET_H, right) + PAD * 2]
+    const textLines = Math.max(1, this.lines.length || Math.ceil((this.node?.text.length ?? 0) / 48))
+    const right = textLines * LINE_H + (this.node?.choices.length ? 8 + this.node.choices.length * CHOICE_H : 0)
+    return [this.panelW, Math.max(TABLET_H * this.tabletScale, right) + PAD * 2]
+  }
+
+  /** Shrink the panel (and P.A.T. himself) to its content. */
+  private measurePanel(ctx: CanvasRenderingContext2D) {
+    const maxTextW = (this.hintMode ? 350 : 430) - TABLET_W - PAD * 3
+    this.lines = this.wrap(ctx, this.node!.text, maxTextW)
+    this.tabletScale = this.hintMode && this.lines.length <= 2 ? 0.7 : 1
+    ctx.font = `${TEXT_SIZE}px "Courier New", monospace`
+    let content = 90 // floor: keeps the name plate and key hint sane
+    for (const l of this.lines) content = Math.max(content, ctx.measureText(l).width + 8)
+    for (let i = 0; i < this.node!.choices.length; i++) {
+      content = Math.max(content, ctx.measureText(`> ${i + 1}. ${this.node!.choices[i].label}`).width + 6)
+    }
+    this.panelW = TABLET_W * this.tabletScale + PAD * 3 + Math.min(content, maxTextW + 8)
   }
 
   private textDone(): boolean {
@@ -184,9 +199,7 @@ export class PatDialogue {
 
   draw(ctx: CanvasRenderingContext2D) {
     if (!this.open || !this.node) return
-    // measure text first so panel height is exact
-    const textW = (this.hintMode ? 350 : 430) - TABLET_W - PAD * 3
-    if (this.lines.length === 0) this.lines = this.wrap(ctx, this.node.text, textW)
+    if (this.lines.length === 0) this.measurePanel(ctx)
     const [w, h] = this.panelSize()
     const [tx, ty] = this.targetPos(w, h)
     if (this.px < 0) { this.px = tx; this.py = ty }
@@ -205,10 +218,11 @@ export class PatDialogue {
     ctx.strokeRect(x, y, w, h)
     ctx.globalAlpha = this.openT
 
-    this.drawTablet(ctx, x + PAD, y + (h - TABLET_H) / 2)
+    const ts = this.tabletScale
+    this.drawTablet(ctx, x + PAD, y + (h - TABLET_H * ts) / 2, ts)
 
     // dialogue text (typewriter)
-    const dx = x + PAD * 2 + TABLET_W
+    const dx = x + PAD * 2 + TABLET_W * ts
     let budget = Math.floor(this.shownChars)
     for (let i = 0; i < this.lines.length && budget > 0; i++) {
       const chunk = this.lines[i].slice(0, budget)
@@ -265,21 +279,21 @@ export class PatDialogue {
   }
 
   /** Small tablet: bezel, camera dot, CRT screen with the face, name plate. */
-  private drawTablet(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  private drawTablet(ctx: CanvasRenderingContext2D, x: number, y: number, s = 1) {
     ctx.fillStyle = '#10161f'
     ctx.strokeStyle = PAL.dim
     ctx.lineWidth = 1.5
-    roundRect(ctx, x, y, TABLET_W, TABLET_H, 5)
+    roundRect(ctx, x, y, TABLET_W * s, TABLET_H * s, 5 * s)
     ctx.fill()
     ctx.stroke()
     // camera dot
     ctx.fillStyle = PAL.faint
     ctx.beginPath()
-    ctx.arc(x + TABLET_W / 2, y + 4.5, 1.5, 0, Math.PI * 2)
+    ctx.arc(x + (TABLET_W * s) / 2, y + 4.5 * s, 1.5, 0, Math.PI * 2)
     ctx.fill()
 
     // screen
-    const sx = x + 5, sy = y + 9, S = 48
+    const sx = x + 5 * s, sy = y + 9 * s, S = Math.round(48 * s)
     const o = this.off.getContext('2d')!
     o.clearRect(0, 0, S, S)
     if (this.portrait) o.drawImage(this.portrait, 0, 0, S, S)
@@ -290,7 +304,7 @@ export class PatDialogue {
       const gh = 2 + Math.floor(Math.random() * 3)
       o.putImageData(o.getImageData(0, gy, S, gh), (Math.random() - 0.5) * 6, gy)
     }
-    ctx.drawImage(this.off, sx, sy)
+    ctx.drawImage(this.off, sx, sy, S, S)
     ctx.save()
     ctx.fillStyle = 'rgba(0,0,0,0.2)'
     for (let i = 0; i < S; i += 3) ctx.fillRect(sx, sy + i, S, 1)
@@ -307,7 +321,7 @@ export class PatDialogue {
     ctx.strokeRect(sx, sy, S, S)
     ctx.restore()
 
-    text(ctx, 'P.A.T.', x + TABLET_W / 2, y + TABLET_H - 5, { size: 8, color: PAL.accent })
+    text(ctx, 'P.A.T.', x + (TABLET_W * s) / 2, y + TABLET_H * s - 5 * s, { size: Math.max(7, 8 * s), color: PAL.accent })
   }
 
   /** Cute round screen-face: big eyes, tiny waveform mouth while talking. */

@@ -85,19 +85,11 @@ export class DockingStage implements Stage {
       this.quotaMet ? 'QUOTA_MET' :
       ore >= ORE_QUOTA / 2 ? 'QUOTA_HALF' : 'QUOTA_MISSED'
 
-    // simulated (tutorial) run: P.A.T. debriefs, nothing is recorded anywhere —
-    // and no bills: a negative training ledger just discourages new players
+    // simulated (tutorial) run: no ledger, no records — draw() shows the
+    // TRAINING RUN COMPLETE card instead
     if (w.simulated) {
       this.game.endTutorial('done')
-      this.equipValue = 0
-      this.fieldValue = Math.max(0, this.fieldValue)
-      this.profit = this.oreValue + this.fuelValue + this.fieldValue + this.salvageValue
       this.launchProbe = false
-      this.lines.push(
-        { t: 'P.A.T.: Simulation complete! You dropped, you mined, you made it back.', c: PAL.accent },
-        { t: 'The ledger below is display-only — corporate pays for REAL ore.', c: PAL.dim },
-        { t: 'Your first actual contract awaits. You are going to do great, Extractor.', c: PAL.good },
-      )
       return
     }
     sendRunEnd(this.ending)
@@ -299,6 +291,30 @@ export class DockingStage implements Stage {
 
     if (!this.docked) {
       text(ctx, 'DOCKING…', VIEW_W / 2, 300, { size: 12, color: PAL.dim })
+      return
+    }
+
+    // training sim: a clean congratulations card replaces the whole debrief
+    if (this.game.world?.simulated) {
+      if (this.t > 2.8) {
+        text(ctx, 'TRAINING RUN COMPLETE', VIEW_W / 2, 258, { size: 24, color: PAL.good })
+        const congrats = [
+          'Congratulations on finishing the training sim. The company is excited',
+          'in the opportunities for profit after your upskilling session.',
+        ]
+        let budget = Math.floor((this.t - 3.1) * 55)
+        let cy = 292
+        for (const line of congrats) {
+          if (budget <= 0) break
+          text(ctx, line.slice(0, budget), VIEW_W / 2, cy, { size: 11, color: PAL.pale })
+          budget -= line.length
+          cy += 19
+        }
+        if (this.phase === 'done' && Math.sin(this.t * 4) > -0.2) {
+          drawKeyHint(ctx, '[E] NEXT CONTRACT', VIEW_W / 2, 348, 11)
+        }
+      }
+      text(ctx, 'Made by @Gabeux.', VIEW_W - 16, 528, { size: 10, color: PAL.pale, align: 'right', alpha: 0.85 })
       return
     }
 
