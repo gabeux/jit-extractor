@@ -30,6 +30,7 @@ export class GroundStage implements Stage {
   private lastMx = -1
   private lastMy = -1
   private bHold = 0
+  private zHold = 0
   private heldTarget: Deconstructable | null = null
   private zoom = 0.55 // eases in from flight zoom
   private focusables: Focusable[] = []
@@ -78,6 +79,9 @@ export class GroundStage implements Stage {
       w.player.y = w.terrain.heightAt(w.lander.x + 36) - 1
       w.player.vx = 0; w.player.vy = 0
     }
+    // snap the camera NOW: a blocking tutorial dialogue can pause the sim
+    // before the first update, and an uninitialized camera shows the sky
+    this.updateCamera(w, 0)
   }
 
   private view(w: World) {
@@ -203,10 +207,13 @@ export class GroundStage implements Stage {
       this.lastMy = input.mouseY
     }
 
-    // ---- Z (hold, near lander): vent ore to shed launch weight ----
+    // ---- Z (hold, near lander): vent ore — the longer held, the faster ----
     if (input.isDown('KeyZ') && Math.abs(player.x - lander.x) < 90 && lander.ore > 0) {
-      lander.ore = Math.max(0, lander.ore - 35 * dt)
+      this.zHold += dt
+      lander.ore = Math.max(0, lander.ore - Math.min(160, 35 + this.zHold * 50) * dt)
       w.burst(lander.x, lander.y - 8, 1, PAL.good, 60)
+    } else {
+      this.zHold = 0
     }
 
     // ---- Q: drop the crate ----
@@ -521,7 +528,8 @@ export class GroundStage implements Stage {
     } else if (item.kind === 'medikit') {
       ctx.fillRect(cx - 8, cy - 6, 16, 12)
       ctx.strokeRect(cx - 8, cy - 6, 16, 12)
-      ctx.fillStyle = PAL.danger
+      // green cross: the red one belongs to an organization with lawyers
+      ctx.fillStyle = PAL.good
       ctx.fillRect(cx - 1.5, cy - 4, 3, 8)
       ctx.fillRect(cx - 4, cy - 1.5, 8, 3)
     } else {

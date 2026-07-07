@@ -101,6 +101,8 @@ export class Animal extends Entity {
   }
 
   private updateAggro(w: World, dt: number) {
+    // tutorial calm: drop and ignore player-side prey while peace holds
+    if (w.peaceful && this.isPlayerSide(this.target)) this.target = null
     if (this.eatT > 0) {
       this.eatT -= dt
       this.vx = 0
@@ -134,6 +136,7 @@ export class Animal extends Entity {
     if (this.hungerT <= 0) {
       // hungry: hunt passive prey first, then any human
       this.target = this.findPrey(w)
+      if (w.peaceful && this.isPlayerSide(this.target)) this.target = null
       if (this.isPlayerSide(this.target)) this.huntingPlayerSide = true
       if (!this.target) this.hungerT = 4 // retry soon
       return
@@ -146,7 +149,7 @@ export class Animal extends Entity {
         e !== this && !e.dead &&
         (e.faction === 'passive' || e.faction === 'pirate' || e.faction === 'native' ||
          (e instanceof Player && !e.inLander)))
-      if (near && Math.random() < 0.22) {
+      if (near && Math.random() < 0.22 && !(w.peaceful && this.isPlayerSide(near))) {
         this.target = near
         if (this.isPlayerSide(near)) this.huntingPlayerSide = true
       }

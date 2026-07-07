@@ -3,11 +3,20 @@ import { TUT } from '../ui/patscript'
 import { Building } from '../entities/buildings'
 import { Drone } from '../entities/drone'
 import { Grenade } from '../entities/projectile'
+import { Pirate } from '../entities/pirate'
+import { Native } from '../entities/native'
+import { WORLD_W } from '../world/world'
+import { warKey } from '../systems/factions'
+import type { Entity } from '../entities/entity'
 
 // The guided first drop. A linear list of steps; each step opens a P.A.T.
 // dialogue (blocking) or hint (sim keeps running), optionally aims the gold
 // arrow, and advances when its condition is met. Ends at the docking stage,
 // which marks the tutorial done.
+//
+// The sim starts PEACEFUL (nothing hunts the player) so the early steps are
+// calm; the wave step flips that off and throws one scripted two-front
+// attack, after which normal planet danger resumes.
 
 /** Stat modifiers for the simulated drop (world.mods when tutorial is on). */
 export const SIM_MODS = { dmgOut: 1.25, dmgIn: 0.5, mine: 1.33, fuelBurn: 0.65 }
@@ -38,6 +47,30 @@ function landerPoint(game: Game): [number, number] | null {
 
 function hasBuilding(game: Game, kind: string): boolean {
   return game.world?.entities.some((e) => e instanceof Building && !e.dead && e.item.kind === kind) ?? false
+}
+
+// The scripted two-front attack (one Tutorial at a time, module state is fine).
+let waveUnits: Entity[] = []
+
+function spawnWave(game: Game) {
+  const w = game.world!
+  w.peaceful = false
+  w.declareWar('native', 'player') // lifted again once the wave is cleared
+  waveUnits = []
+  const pirateSide = Math.random() < 0.5 ? 30 : WORLD_W - 30
+  const nativeSide = pirateSide === 30 ? WORLD_W - 30 : 30
+  for (let i = 0; i < 3; i++) {
+    const p = new Pirate(pirateSide + Math.sign(WORLD_W / 2 - pirateSide) * i * 14, 'raider')
+    p.y = w.terrain.heightAt(p.x) - 4
+    w.spawn(p)
+    waveUnits.push(p)
+  }
+  for (let i = 0; i < 4; i++) {
+    const n = new Native(nativeSide + Math.sign(WORLD_W / 2 - nativeSide) * i * 12, w.campX ?? WORLD_W / 2, true)
+    n.y = w.terrain.heightAt(n.x) - 4
+    w.spawn(n)
+    waveUnits.push(n)
+  }
 }
 
 const STEPS: Step[] = [
@@ -76,6 +109,25 @@ const STEPS: Step[] = [
     enter: (g) => g.pat.hint(TUT.grenadeThrow),
     done: (g) => g.world?.entities.some((e) => e instanceof Grenade) ?? false,
   },
+  { // the scripted two-front attack: peace ends here
+    enter: (g) => { spawnWave(g); g.pat.hint(TUT.wave) },
+    pointer: (g) => {
+      const w = g.world
+      if (!w) return null
+      const alive = waveUnits
+        .filter((e) => !e.dead)
+        .sort((a, b) => Math.abs(a.x - w.player.x) - Math.abs(b.x - w.player.x))[0]
+      return alive ? groundPoint(g, alive.x, alive.y - 30) : null
+    },
+    done: (g) => waveUnits.every((e) => e.dead) || !onGround(g),
+  },
+  {
+    enter: (g) => {
+      g.world?.wars.delete(warKey('native', 'player')) // the grudge was scripted
+      g.pat.show(TUT.waveDone)
+    },
+    done: (g) => !g.pat.open,
+  },
   {
     enter: (g) => g.pat.hint(TUT.fuelgen),
     pointer: (g) => (g.world?.player.carrying ? null : landerPoint(g)),
@@ -103,17 +155,13 @@ const STEPS: Step[] = [
     enter: (g) => g.pat.show(TUT.medikit),
     done: (g) => !g.pat.open,
   },
-  { // pack up a full extractor (or let the drone beat you to it)
-    enter: (g) => g.pat.hint(TUT.harvest),
-    pointer: (g) => {
-      const w = g.world
-      if (!w) return null
-      const drill = w.entities
-        .filter((e): e is Building => e instanceof Building && !e.dead && e.item.kind === 'drill')
-        .sort((a, b) => b.item.fill - a.item.fill)[0]
-      return drill ? groundPoint(g, drill.x, drill.y - 40) : null
-    },
-    done: (g) => (g.world?.lander.ore ?? 0) >= 1,
+  { // pack-up lesson: a pause, not a task — the drone may already have done it
+    enter: (g) => g.pat.show(TUT.harvest),
+    done: (g) => !g.pat.open,
+  },
+  {
+    enter: (g) => g.pat.show(TUT.audits),
+    done: (g) => !g.pat.open,
   },
   {
     enter: (g) => g.pat.hint(TUT.launch),
@@ -131,14 +179,20 @@ export class Tutorial {
 
   update(game: Game) {
     if (this.idx >= STEPS.length) return
-    if (this.idx < 0 || STEPS[this.idx].done(game)) {
-      // advance past every already-satisfied step (e.g. drone built early)
-      do { this.idx++ } while (this.idx < STEPS.length && STEPS[this.idx].done(game))
-      if (this.idx >= STEPS.length) {
-        game.pat.close()
-        return
-      }
+    if (this.idx >= 0 && !STEPS[this.idx].done(game)) {
+      game.pat.setPointer(STEPS[this.idx].pointer?.(game) ?? null)
+      return
+    }
+    // advance by ENTERING each step, then re-checking: blocking steps open
+    // their dialogue first (so `!pat.open` can't skip them), while hint steps
+    // whose condition is already met fall through
+    while (++this.idx < STEPS.length) {
       STEPS[this.idx].enter(game)
+      if (!STEPS[this.idx].done(game)) break
+    }
+    if (this.idx >= STEPS.length) {
+      game.pat.close()
+      return
     }
     game.pat.setPointer(STEPS[this.idx].pointer?.(game) ?? null)
   }

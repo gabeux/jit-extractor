@@ -41,6 +41,8 @@ export class Lander extends Entity {
 
   update(w: World, dt: number) {
     if (this.flashT > 0) this.flashT -= dt
+    // training sims come with self-repairing plating
+    if (w.simulated && !this.dead) this.hp = Math.min(this.maxHp, this.hp + dt)
     if (!this.flying) {
       // settle onto (possibly cratered) terrain
       this.y = w.terrain.heightAt(this.x)

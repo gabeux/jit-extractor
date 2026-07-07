@@ -197,6 +197,7 @@ export class Pirate extends Entity {
   }
 
   private pickTarget(w: World): Entity | null {
+    if (w.peaceful) return null // tutorial calm: holograms don't hold grudges
     if (this.personalAggro && !this.personalAggro.dead &&
         dist(this.x, this.y, this.personalAggro.x, this.personalAggro.y) < SIGHT + 80) {
       return this.personalAggro
@@ -240,7 +241,8 @@ export class Pirate extends Entity {
       this.blockedShots++
       if (this.blockedShots >= 2) {
         this.blockedShots = 0
-        if (Math.random() < 0.3) {
+        if (Math.random() < 0.3 && w.pirateGrenadeCd <= 0) {
+          w.pirateGrenadeCd = 4 // one lobbed grenade per crew at a time
           const T = 1.1
           w.spawn(new Grenade(gx, gy, (t.x - gx) / T, (t.cy - gy) / T - 0.5 * 900 * T, 'pirate', 1.6, 40, 65, this))
           sfx.drop()
@@ -250,8 +252,9 @@ export class Pirate extends Entity {
         return
       }
     } else this.blockedShots = 0
-    if (Math.random() < 0.02) {
-      // the dreaded 2% grenade
+    if (Math.random() < 0.02 && w.pirateGrenadeCd <= 0) {
+      // the dreaded 2% grenade — one per crew at a time
+      w.pirateGrenadeCd = 4
       const T = 0.9
       const vx = (t.x - gx) / T
       const vy = (t.cy - gy) / T - 0.5 * 900 * T

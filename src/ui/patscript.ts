@@ -55,29 +55,41 @@ export function patIntro(game: Game, returning: boolean): DialogueNode {
 export const TUT = {
   board: "That console runs the pre-drop checks. Walk over and press [E] whenever you're ready.",
   flightIntro: {
-    text: "Lander controls: [W] burns the main thruster, [A]/[D] to steer with reaction thrusters. To the write of your control dashboard, keep the ▼ speed number GREEN near the ground, and aim for flat terrain. Our lander won't survive a free fall.",
-    choices: [{ label: 'It got this.' }, { label: "I''m scared." }],
+    text: "Lander controls: [W] burns the main thruster, [A]/[D] to steer with reaction thrusters. To the right of your control dashboard, keep the ▼ speed number GREEN near the ground, and aim for flat terrain. Our lander won't survive a free fall.",
+    choices: [{ label: 'I got this.' }, { label: "I'm scared." }],
   } as DialogueNode,
   descent: "Easy does it - short taps of [W]. Green ▼ number = survivable landing. Flat ground = happy lander.",
   groundIntro: {
-    text: "Textbook landing! Now, about this planet: pirates collect ore for their own agenda, and some of the wildlife bites. Rule one of extraction: we defend FIRST, mine second.",
-    choices: [{ label: 'Understood.' }],
+    text: "Touchdown! Now, for some planetside information: we are here to collect ore, and leave. But..sometimes, you may encounter some resistance. Pirates sometimes collect ore for their own agenda, and some of the wildlife bite when they get hungry. A good rule for extraction: defend FIRST, mine second.",
+    choices: [{ label: 'Makes sense.' }],
   } as DialogueNode,
-  turretGrab: "Stand by the lander - its equipment rack pops up. Select the TURRET with [Q]/[E] and take it with [F].",
-  turretBuild: "Now hold [B] to deploy it. Turrets shoot pirates and anything hunting you. Usually not you.",
+  turretGrab: "Stand close to the lander. Its equipment rack will pop up. Select the TURRET with [MOUSE] or [Q]/[E] or and take one with [F].",
+  turretBuild: "Now hold [B] to deploy it. Turrets shoot pirates and anything hunting you. They will, usually shoot at you too.",
   grenadeTalk: {
-    text: "Personal defense 101: tap [G] to lob a timed grenade. HOLD [G] to aim an arc - those detonate on impact. Grenades solve groups. And friendships, if you're careless.",
-    choices: [{ label: 'Noted.' }],
+    text: "Personal defense 101: tap [G] to lob a timed grenade. HOLD [G] to aim an arc - those detonate on impact. Grenades end groups. And friendships, if you're careless.",
+    choices: [{ label: 'Noted.' }, { label: "I wouldn't explode my friends." }],
   } as DialogueNode,
   grenadeThrow: "Try one now: tap or hold [G]. Aim it away from the lander, please. I'm in the lander.",
-  fuelgen: "Rack time: take the FUEL GEN and hold [B] to plant it. It slowly brews the fuel you need to fly home. No fuel gen, no ride.",
-  drill: "The moneymaker: take an EXTRACTOR and build it ON an ore node - the rocks with the green glints. It fills itself with ore over time.",
-  drone: "Deploy the PICKUP DRONE. It ferries full extractor loads to the lander so you don't have to. It is also fragile - tinfoil and optimism - keep it away from gunfire.",
-  medikit: {
-    text: "See the red-cross crate in the rack? MEDIKIT: instant full heal, single use, billed if wasted. Take it ONLY when you're actually hurt. Corporate audits everything.",
-    choices: [{ label: 'Only when hurt. Got it.' }],
+  wave: "Contacts! Sensors read a pirate party on one flank and some very upset locals on the other. Let the turret work, use your gun and grenades, and keep them off the lander!",
+  waveDone: {
+    text: "And that's how it goes out here: something always wants your ore, your lander, or you. Stay alert, Extractor - real drops don't schedule their ambushes.",
+    choices: [{ label: 'Stay alert. Got it.' }],
   } as DialogueNode,
-  harvest: "When an extractor's bar is full, hold [E] on it to pack it into a crate, haul it to the lander and press [E] to store it. The ore banks toward your quota.",
-  launch: "Fuel at 40+? Cargo aboard? Then use the rack's ▲ BOARD & LAUNCH slot. Real drops want 200 ore - but this is a sim, so leave whenever you're ready.",
+  fuelgen: "To ensure a safe return to orbit, take the FUEL GEN and hold [B] to deploy it. It slowly brews the fuel you need to fly home, in case you're running low. Return the generator to the lander to refuel. No fuel and no Fuel Gen means you're Stranded: Weekly reminder that your Survival is not covered by corporate insurance!",
+  drill: "The moneymaker: take an EXTRACTOR and build it ON an ore node - the rocks with the green glints. It fills itself with ore over time.",
+  drone: "Deploy the PICKUP DRONE. It will automatically pick up ore from extractors and return it to the lander so you don't have to. It is also fragile - tinfoil and optimism - keep it away from gunfire!",
+  medikit: {
+    text: "In case you get hurt: you can check your health status on the bottom left. The lander has a MEDIKIT in its cargo - the crate with a green-cross. Instant full heal, single use. Use it wisely, the company cannot heal you when you're dead. An early death hurts profits.",
+    choices: [{ label: "Better to use it only when I'm hurt. Got it." }],
+  } as DialogueNode,
+  harvest: {
+    text: "If you don't want to deploy your Cargo Drone, or in case you lose it, you can return your extractors to the lander to collect the ore. When an extractor's bar is full, hold [E] on it to pack it into a crate, haul it to the lander and press [E] to store it. You cannot shoot when you're holding crates, so press [Q] to drop them if needed!",
+    choices: [{ label: 'Pack up, haul, store. Got it.' }],
+  } as DialogueNode,
+  launch: "Look at the top right of your interface: there we can see the your Current Ore and your Ore Quota for this drop, along with your available fuel. If your Quota is met, use the rack's ▲ BOARD & LAUNCH option. As this is a simulation, leave whenever you're ready. If your ship is too full, feel free to drop ore by holding Z if the flight is feeling dangerous - ore affects your lander's mass.",
+  audits: {
+    text: "A final note regarding Profits: once you dock back at the ship, everything you did on the field will be audited. To maximize profits, return your equipment to the lander. Corporate understands if you're in a hurry, but abandoned equipment will be billed from your run.",
+    choices: [{ label: 'Leave nothing behind. Noted.' }],
+  } as DialogueNode,
   ascent: "Point up, hold [W], and don't stop until orbit. I'll handle the paperwork.",
 }

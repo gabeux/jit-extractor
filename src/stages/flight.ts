@@ -19,6 +19,7 @@ export class FlightStage implements Stage {
   readonly name: string
   private thrustSfxT = 0
   private t = 0
+  private zHold = 0
   private zoom: number
 
   constructor(private game: Game, private mode: 'descent' | 'ascent') {
@@ -71,10 +72,13 @@ export class FlightStage implements Stage {
       lander.fuel = Math.max(0, lander.fuel - 2.2 * w.mods.fuelBurn * dt)
       lander.thrustSide = ax
     }
-    // Z vents ore overboard to shed weight
+    // Z vents ore overboard to shed weight — the longer held, the faster
     if (input.isDown('KeyZ') && lander.ore > 0) {
-      lander.ore = Math.max(0, lander.ore - 35 * dt)
+      this.zHold += dt
+      lander.ore = Math.max(0, lander.ore - Math.min(160, 35 + this.zHold * 50) * dt)
       w.burst(lander.x, lander.y - 4, 1, PAL.good, 70)
+    } else {
+      this.zHold = 0
     }
     lander.vx *= 1 - 0.5 * dt
     lander.vx = clamp(lander.vx, -260, 260)
@@ -104,6 +108,15 @@ export class FlightStage implements Stage {
       lander.thrustSide = 0
       lander.vx = 0; lander.vy = 0
       sfx.thud()
+      // overweight ascent hop: the lander physically can't climb (TWR <= 1).
+      // Tell the player why instead of billing them for the physics lesson.
+      if (this.mode === 'ascent' && (600 / massFactor) / GRAV <= 1.02) {
+        w.addFloater(lander.x, gy - 74, 'TOO HEAVY TO FLY', PAL.danger)
+        w.addFloater(lander.x, gy - 58, 'HOLD Z — VENT ORE', PAL.warm)
+        w.terrain.flatten(lander.x, 26)
+        this.game.gotoGround()
+        return
+      }
       if (impact > SAFE_VY) {
         // free-fall is lethal: sensitivity high enough that terminal velocity kills
         const dmg = Math.round((impact - SAFE_VY) * 2.0)

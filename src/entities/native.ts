@@ -20,6 +20,7 @@ export class Native extends Entity {
   private lungeDir = 1
   private standing = false // hysteresis: don't flap between walk/stop at the range edge
   private hopCd = 0
+  private escorting = false
   private retargetT = Math.random() * 0.4
   target: Entity | null = null
   private personalAggro: Entity | null = null
@@ -42,9 +43,11 @@ export class Native extends Entity {
     if (this.lungeT > 0) this.lungeT -= dt
     this.retargetT -= dt
     if (this.retargetT <= 0) {
-      // sticky targeting: a committed target doesn't flip-flop with every step
+      // sticky targeting: a committed target doesn't flip-flop with every
+      // step — but it must still QUALIFY (wars end, grudges expire)
       const cur = this.target
-      const keep = cur && !cur.dead && dist(this.x, this.y, cur.x, cur.y) < 460
+      const keep = cur && !cur.dead && dist(this.x, this.y, cur.x, cur.y) < 460 &&
+        (cur === this.personalAggro || this.hostileTo(w, cur))
       this.target = keep ? cur : this.pickTarget(w)
       this.retargetT = keep ? 1.2 : 0.4
     }
@@ -77,6 +80,8 @@ export class Native extends Entity {
       // march toward the player's landing site
       const goal = !w.player.dead && !w.player.inLander ? w.player.x : w.lander.x
       this.vx = Math.abs(goal - this.x) > 120 ? Math.sign(goal - this.x) * 95 : 0
+    } else if (this.escort(w)) {
+      // shadowing a trespasser: loom close, never swing first
     } else {
       // wander around camp
       this.wanderT -= dt
@@ -88,27 +93,46 @@ export class Native extends Entity {
     }
   }
 
+  /** What justifies a spear. Trespassing alone doesn't — that gets an escort. */
+  private hostileTo(w: World, e: Entity): boolean {
+    if (e.faction === 'player' && w.atWar('native', 'player') &&
+        (e instanceof Player ? !e.inLander : e instanceof Building)) return true
+    if (e.faction === 'pirate' && w.atWar('native', 'pirate')) return true
+    if (e instanceof Animal && e.kind === 'aggro' && dist(this.x, this.y, e.x, e.y) < 130) return true
+    if (e instanceof Animal && w.time < w.nativeHuntUntil && dist(this.x, this.y, e.x, e.y) < 600) return true
+    return false
+  }
+
   private pickTarget(w: World): Entity | null {
+    if (w.peaceful) return null // tutorial calm before the wave
     if (this.personalAggro && !this.personalAggro.dead &&
         dist(this.x, this.y, this.personalAggro.x, this.personalAggro.y) < 480) {
       return this.personalAggro
     }
     let best: Entity | null = null
     let bestD = 460
-    const huntActive = w.time < w.nativeHuntUntil
     for (const e of w.entities) {
-      if (e.dead || e === this) continue
-      let hostile = false
-      if (e.faction === 'player' && w.atWar('native', 'player') && (e instanceof Player ? !e.inLander : e instanceof Building)) hostile = true
-      else if (e.faction === 'pirate' && w.atWar('native', 'pirate')) hostile = true
-      else if (e instanceof Player && !e.inLander && Math.abs(e.x - this.campX) < 140) hostile = true // territorial
-      else if (e instanceof Animal && e.kind === 'aggro' && dist(this.x, this.y, e.x, e.y) < 130) hostile = true
-      else if (e instanceof Animal && huntActive && dist(this.x, this.y, e.x, e.y) < 600) hostile = true
-      if (!hostile) continue
+      if (e.dead || e === this || !this.hostileTo(w, e)) continue
       const d = dist(this.x, this.cy, e.cx, e.cy)
       if (d < bestD) { bestD = d; best = e }
     }
     return best
+  }
+
+  /** Trespasser in camp territory: follow and loom until they leave. */
+  private escort(w: World): boolean {
+    const p = w.player
+    if (w.peaceful || p.dead || p.inLander) { this.escorting = false; return false }
+    // hysteresis on the territory edge so they don't dither at the border —
+    // and they never pursue beyond it once the trespasser leaves
+    if (Math.abs(p.x - this.campX) > (this.escorting ? 175 : 140)) {
+      this.escorting = false
+      return false
+    }
+    this.escorting = true
+    const dx = p.x - this.x
+    this.vx = Math.abs(dx) > 30 ? Math.sign(dx) * 120 : 0
+    return true
   }
 
   protected onDamaged(w: World, src: Entity | null) {

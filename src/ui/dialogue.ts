@@ -170,15 +170,17 @@ export class PatDialogue {
   private wrap(ctx: CanvasRenderingContext2D, s: string, maxW: number): string[] {
     ctx.font = `${TEXT_SIZE}px "Courier New", monospace`
     const out: string[] = []
-    let line = ''
-    for (const word of s.split(' ')) {
-      const probe = line ? `${line} ${word}` : word
-      if (ctx.measureText(probe).width > maxW && line) {
-        out.push(line)
-        line = word
-      } else line = probe
+    for (const para of s.split('\n')) { // authors can force breaks with \n
+      let line = ''
+      for (const word of para.split(' ')) {
+        const probe = line ? `${line} ${word}` : word
+        if (ctx.measureText(probe).width > maxW && line) {
+          out.push(line)
+          line = word
+        } else line = probe
+      }
+      out.push(line)
     }
-    if (line) out.push(line)
     return out
   }
 
@@ -194,6 +196,9 @@ export class PatDialogue {
       // below the target, so the box never covers what the arrow points at
       return [Math.max(8, Math.min(952 - w, x)), Math.max(28, Math.min(506 - h, ty + 24))]
     }
+    // untargeted hints tuck into the bottom-left corner, off the action;
+    // conversations (game paused) stay bottom-center
+    if (this.hintMode) return [12, 540 - h - 46]
     return [(960 - w) / 2, 540 - h - 26]
   }
 

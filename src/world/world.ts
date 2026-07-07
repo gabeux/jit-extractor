@@ -45,6 +45,10 @@ export class World {
   // tutorial "simulated drop": friendlier stats, no leaderboard/analytics
   simulated = false
   mods = { dmgOut: 1, dmgIn: 1, mine: 1, fuelBurn: 1 }
+  /** Nothing hunts the player (tutorial calm, until the scripted wave). */
+  peaceful = false
+  /** Global pirate grenade throttle so stacked pirates can't nade-spam. */
+  pirateGrenadeCd = 0
 
   // pirate raid state (triggered by player kills)
   private raidQueued = false
@@ -288,6 +292,7 @@ export class World {
 
   update(dt: number) {
     this.time += dt
+    this.pirateGrenadeCd = Math.max(0, this.pirateGrenadeCd - dt)
     for (const e of this.entities) if (!e.dead) e.update(this, dt)
     this.entities = this.entities.filter((e) => !e.dead)
 

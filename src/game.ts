@@ -57,6 +57,9 @@ export class Game {
     if (this.tutorial) {
       this.world.simulated = true
       this.world.mods = { ...SIM_MODS }
+      this.world.peaceful = true // calm until the scripted wave step
+      this.world.lander.maxHp *= 2
+      this.world.lander.hp = this.world.lander.maxHp
     }
     this.setStage(new FlightStage(this, 'descent'))
   }
