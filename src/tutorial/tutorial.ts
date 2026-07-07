@@ -109,16 +109,12 @@ const STEPS: Step[] = [
     enter: (g) => g.pat.hint(TUT.grenadeThrow),
     done: (g) => g.world?.entities.some((e) => e instanceof Grenade) ?? false,
   },
-  { // the scripted two-front attack: peace ends here
-    enter: (g) => { spawnWave(g); g.pat.hint(TUT.wave) },
-    pointer: (g) => {
-      const w = g.world
-      if (!w) return null
-      const alive = waveUnits
-        .filter((e) => !e.dead)
-        .sort((a, b) => Math.abs(a.x - w.player.x) - Math.abs(b.x - w.player.x))[0]
-      return alive ? groundPoint(g, alive.x, alive.y - 30) : null
-    },
+  { // the scripted two-front attack: enemies hang frozen while this is read
+    enter: (g) => { spawnWave(g); g.pat.show(TUT.wave) },
+    done: (g) => !g.pat.open,
+  },
+  { // the fight itself: no arrow, just the reminder that retreat exists
+    enter: (g) => g.pat.hint(TUT.waveFight),
     done: (g) => waveUnits.every((e) => e.dead) || !onGround(g),
   },
   {

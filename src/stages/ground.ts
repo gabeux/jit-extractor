@@ -11,6 +11,7 @@ import { Flare } from '../entities/pirateship'
 import { FlarePickup } from '../entities/loot'
 import { WORLD_W, ORE_QUOTA, MIN_LAUNCH_FUEL } from '../world/world'
 import { sfx } from '../audio/sfx'
+import { TUT } from '../ui/patscript'
 
 const GROUND_LEVEL = 1560
 const SLOT = 36
@@ -56,7 +57,7 @@ export class GroundStage implements Stage {
         (e instanceof Building || e instanceof Drone) && !e.dead)
       if (decon) list.push({ kind: 'decon', e: decon })
       if (this.shipStealable(w) && Math.abs(player.x - w.pirateShip!.x) < 70) list.push({ kind: 'ship', e: w.pirateShip })
-      if (Math.abs(player.x - lander.x) < 76 && Math.abs(player.y - lander.y) < 70) list.push({ kind: 'lander', e: null })
+      if (!lander.dead && Math.abs(player.x - lander.x) < 76 && Math.abs(player.y - lander.y) < 70) list.push({ kind: 'lander', e: null })
     }
     const sig = list.map((f) => f.kind).join(',')
     if (sig !== this.lastFocusSig) { this.lastFocusSig = sig; this.focusIdx = 0 }
@@ -134,12 +135,28 @@ export class GroundStage implements Stage {
     w.update(dt)
 
     if (player.dead) {
-      // dying under the meteor storm isn't a game over — it's a rude awakening
-      if (w.meteorStorm) this.game.wakeFromDream()
-      else this.game.terminate('EXTRACTOR DOWN')
+      if (w.simulated) {
+        // company property doesn't die in training — respawn where you fell
+        player.dead = false
+        player.hp = player.maxHp
+        if (!w.entities.includes(player)) w.entities.push(player)
+        this.game.pat.show(TUT.death)
+      } else if (w.meteorStorm) {
+        // dying under the meteor storm isn't a game over — a rude awakening
+        this.game.wakeFromDream()
+      } else {
+        this.game.terminate('EXTRACTOR DOWN')
+      }
     } else if (lander.dead && !w.meteorStorm) {
-      // during the storm the lander is already forfeit; play to the bitter end
-      this.game.terminate('LANDER DESTROYED')
+      if (w.simulated) {
+        // ...neither does the ride home
+        lander.dead = false
+        lander.hp = lander.maxHp * 0.4
+        if (!w.entities.includes(lander)) w.entities.push(lander)
+        w.addFloater(lander.x, lander.y - 70, 'SIMULATION: LANDER RESTORED', PAL.accent)
+      }
+      // real runs: a dead lander is not the end — it's the STRANDED path
+      // (steal a pirate ship; the HUD objective takes over via isStranded)
     }
   }
 
@@ -151,7 +168,7 @@ export class GroundStage implements Stage {
     // ---- E acts on the FOCUSED interactable (V switches focus) ----
     const shipDock = w.pirateShip && !w.pirateShip.dead && w.pirateShip.state === 'landed' &&
       Math.abs(player.x - w.pirateShip.x) < 76
-    if (player.carrying && Math.abs(player.x - lander.x) < 76) {
+    if (player.carrying && !lander.dead && Math.abs(player.x - lander.x) < 76) {
       if (input.wasPressed('KeyE')) this.storeCrate(w, player.carrying)
     } else if (player.carrying && shipDock && input.wasPressed('KeyE')) {
       // ferrying gear onto your soon-to-be ship: it escapes with you
@@ -409,7 +426,7 @@ export class GroundStage implements Stage {
     const nearLander = Math.abs(player.x - lander.x) < 76 && Math.abs(player.y - lander.y) < 70
 
     if (player.carrying) {
-      if (nearLander) promptAt(ctx, ...this.toScreen(lander.x, lander.y - 96, camX, camY), 'E — STORE CRATE')
+      if (nearLander && !lander.dead) promptAt(ctx, ...this.toScreen(lander.x, lander.y - 96, camX, camY), 'E — STORE CRATE')
       const ship = w.pirateShip
       if (ship && !ship.dead && ship.state === 'landed' && Math.abs(player.x - ship.x) < 76) {
         promptAt(ctx, ...this.toScreen(ship.x, ship.y - 56, camX, camY), 'E — STOW CRATE')

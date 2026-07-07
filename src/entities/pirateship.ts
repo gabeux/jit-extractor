@@ -1,11 +1,14 @@
 import { Entity } from './entity'
 import { Pirate } from './pirate'
+import { Native } from './native'
+import { Animal } from './animal'
+import { Player } from './player'
 import { Building } from './buildings'
 import { Drone } from './drone'
 import { OreDrop } from './loot'
 import type { World } from '../world/world'
 import { PAL } from '../palette'
-import { sfx } from '../audio/sfx'
+import { sfx, wilhelm } from '../audio/sfx'
 
 // Fired by the first pirate to grab spilled ore. Pure signal: rises, pops red.
 export class Flare extends Entity {
@@ -77,6 +80,18 @@ export class PirateShip extends Entity {
         this.state = 'landed'
         w.shake = Math.max(w.shake, 8)
         sfx.thud()
+        // anyone standing in the landing zone gets flattened with the terrain
+        let squishedTribal = false
+        for (const e of w.entities) {
+          if (e.dead || !(e instanceof Native || e instanceof Animal || e instanceof Player)) continue
+          if (e instanceof Player && e.inLander) continue
+          if (Math.abs(e.x - this.x) < 52 && Math.abs(e.y - gy) < 40) {
+            w.burst(e.x, e.cy, 16, PAL.danger, 160)
+            e.damage(w, 999, null)
+            if (e instanceof Native) squishedTribal = true
+          }
+        }
+        if (squishedTribal) wilhelm()
         for (let i = 0; i < this.squadSize; i++) {
           const p = new Pirate(this.x + (i % 2 === 0 ? -1 : 1) * (30 + i * 9), 'squad')
           p.y = this.y - 4

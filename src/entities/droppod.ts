@@ -1,7 +1,9 @@
-import { Entity } from './entity'
+import { Entity, dist } from './entity'
 import { Pirate } from './pirate'
+import { Native } from './native'
 import type { World } from '../world/world'
 import { PAL } from '../palette'
+import { wilhelm } from '../audio/sfx'
 
 // Ballistic pirate reinforcement pod (rimworld-style raid). Comes in at an
 // angle, breaks on landing, kills anything it lands on. Never targets the lander.
@@ -30,7 +32,10 @@ export class DropPod extends Entity {
     if (this.y >= gy) {
       this.dead = true
       // squash landing: lethal directly underneath, then pop open
+      const squishedTribal = w.entities.some((e) =>
+        e instanceof Native && !e.dead && dist(this.x, gy - 4, e.cx, e.cy) < 42 + e.w / 2)
       w.explode(this.x, gy - 4, 42, 220, null, { craterDepth: 14, big: true })
+      if (squishedTribal) wilhelm()
       for (let i = 0; i < this.count; i++) {
         const p = new Pirate(this.x + (i - (this.count - 1) / 2) * 14, 'raider')
         p.y = gy - 10

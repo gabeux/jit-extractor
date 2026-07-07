@@ -69,7 +69,10 @@ export class DockingStage implements Stage {
       const returned = returnedBag.filter((i) => i.kind === kind).length
       this.equipValue -= Math.max(0, expected - returned) * EQUIPMENT_COST[kind]
     }
-    this.salvageValue = w.escapedInPirateShip ? 15000 : 0
+    // a destroyed lander is written off the run (largely plating with
+    // bolted thrusters, but corporate keeps receipts)
+    if (w.lander.dead) this.equipValue -= 3000
+    this.salvageValue = w.escapedInPirateShip ? 18000 : 0
     this.profit = this.oreValue + this.fuelValue + this.fieldValue + this.equipValue + this.salvageValue
     // pirate-ship escapes count on BOTH boards: quota or not, corporate
     // clocks a completed extraction the moment the salvage docks
@@ -102,7 +105,10 @@ export class DockingStage implements Stage {
         { t: 'You had one job... and you completed it with flying colors.', c: PAL.warm },
         { t: "We're very proud of you - RTB.", c: PAL.warm },
       )
-      this.lines.push({ t: 'Salvage division appraisal: one (1) Pirate Cutter — $15,000. Not bad, Extractor.', c: PAL.good })
+      this.lines.push({ t: 'Salvage division appraisal: one (1) Pirate Cutter — $18,000. Not bad, Extractor.', c: PAL.good })
+      if (w.lander.dead) {
+        this.lines.push({ t: 'Asset write-off: one (1) Lander, destroyed in the field — $3,000 deducted.', c: PAL.danger })
+      }
       const abandoned = propertyLeft + (w.lander.dead ? 0 : 1)
       if (abandoned > 0) {
         this.lines.push({ t: `CORPORATE NOTICE: ${abandoned} company asset(s) abandoned on-site. Costs will be deducted.`, c: PAL.danger })

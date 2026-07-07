@@ -155,6 +155,7 @@ export class World {
   }
 
   onPirateKilled() {
+    if (this.simulated) return // no revenge raids in the training sim
     if (this.raidQueued || this.raidPirates > 10) return
     this.raidQueued = true
     this.raidCountdown = range(this.rng, 16, 34)
@@ -162,6 +163,7 @@ export class World {
 
   onNativeKilled() {
     this.nativesKilledByPlayer++
+    if (this.simulated) return
     if (this.nativeRaidQueued || this.nativeRaidCount > 12) return
     this.nativeRaidQueued = true
     this.nativeRaidCountdown = range(this.rng, 15, 25)
@@ -174,6 +176,7 @@ export class World {
 
   /** Summon the deathsquad ship (once per arming). flareFrom = who signals. */
   triggerShipEvent(flareFrom: Entity | null) {
+    if (this.simulated) return // the sim schedules no surprises
     if (!this.shipEventArmed || this.pirateShip || this.shipCountdown > 0) return
     this.shipEventArmed = false
     if (flareFrom) this.spawn(new Flare(flareFrom.x, flareFrom.y - 24))
@@ -193,15 +196,17 @@ export class World {
 
   /** Stranded flare: summons the ship regardless of the armed flag. */
   summonShipForced() {
+    if (this.simulated) return
     if (this.pirateShip || this.shipCountdown > 0) return
     this.shipEventArmed = false
     this.shipCountdown = range(this.rng, 4, 7)
     sfx.alarm()
   }
 
-  /** Can't make the launch gate and every fuel generator is gone = stranded. */
+  /** No way home: dead lander, or launch gate unreachable with no fuel gen. */
   isStranded(): boolean {
-    if (this.lander.dead || this.lander.flying) return false
+    if (this.lander.flying) return false
+    if (this.lander.dead) return true
     if (this.lander.fuel >= MIN_LAUNCH_FUEL) return false
     const hasGen =
       this.lander.inventory.some((i) => i.kind === 'fuelgen') ||
@@ -357,14 +362,14 @@ export class World {
       }
     }
 
-    // periodic faction-wide native hunt
-    if (this.time > this.nextHuntAt) {
+    // periodic faction-wide native hunt (not in the sim: minimal stimulation)
+    if (this.time > this.nextHuntAt && !this.simulated) {
       this.nativeHuntUntil = this.time + 22
       this.nextHuntAt = this.time + range(this.rng, 120, 200)
     }
 
     // animals roam in from the map edges
-    if (this.time > this.nextRoamAt) {
+    if (this.time > this.nextRoamAt && !this.simulated) {
       this.nextRoamAt = this.time + range(this.rng, 15, 32)
       const count = this.entities.filter((e) => e instanceof Animal).length
       if (count < 9) {
@@ -389,6 +394,15 @@ export class World {
       for (let tries = 0; tries < 24; tries++) {
         tx = range(this.rng, 100, WORLD_W - 100)
         if (Math.abs(tx - this.lander.x) > 280) break // never on the lander
+      }
+      // the 5% pod: pirate targeting computers occasionally pick a warm body
+      if (this.rng() < 0.05) {
+        const beings = this.entities.filter((e) =>
+          !e.dead && e.faction !== 'pirate' && e !== (this.player as Entity) &&
+          (e.faction === 'native' || e.faction === 'passive' || e.faction === 'aggro') &&
+          Math.abs(e.x - this.lander.x) > 280)
+        const mark = beings[irange(this.rng, 0, beings.length - 1)]
+        if (mark) tx = mark.x
       }
       const pod = new DropPod(tx, this.terrain.heightAt(tx), n, range(this.rng, -1, 1) * 200)
       this.spawn(pod)
