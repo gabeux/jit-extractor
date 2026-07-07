@@ -7,7 +7,7 @@ import { PatDialogue } from './ui/dialogue'
 import { Tutorial, SIM_MODS } from './tutorial/tutorial'
 import { setTutorialState } from './ui/patscript'
 import { sendRunEnd } from './net/analytics'
-import { setWeatherAmbience } from './audio/sfx'
+import { setWeatherAmbience, setWarDrums } from './audio/sfx'
 import { generatePlanet, type Planet } from './planetname'
 import { WarpStage } from './stages/warp'
 import { World } from './world/world'
@@ -39,6 +39,7 @@ export class Game {
   stage: Stage
   private seed = Math.floor(Math.random() * 0x7fffffff)
   private runStartMs = 0
+  private ambT = 0
 
   constructor(public input: Input, public music: MusicPlayer) {
     this.planet = generatePlanet(this.seed)
@@ -49,10 +50,10 @@ export class Game {
   private setStage(s: Stage) {
     this.stage = s
     s.enter()
-    // weather ambience follows the planet stages, silence everywhere else
-    const AMB: Record<string, number> = { clear: 0, wind: 0.015, rain: 0.028, hail: 0.032, storm: 0.04 }
+    // planet audio beds don't follow you into orbit
     const onPlanet = s.name === 'descent' || s.name === 'ascent' || s.name === 'ground'
-    setWeatherAmbience(onPlanet && this.world ? AMB[this.world.weather] : 0)
+    setWeatherAmbience(onPlanet && this.world ? this.world.ambienceLevel() : 0)
+    if (!onPlanet) setWarDrums(0)
   }
 
   startDescent() {
@@ -156,6 +157,13 @@ export class Game {
     }
     this.stage.update(dt)
     this.tutorial?.update(this)
+    // ambience tracks the weather crossfade while planetside
+    this.ambT -= dt
+    if (this.ambT <= 0) {
+      this.ambT = 0.4
+      const onPlanet = this.stage.name === 'descent' || this.stage.name === 'ascent' || this.stage.name === 'ground'
+      setWeatherAmbience(onPlanet && this.world ? this.world.ambienceLevel() : 0)
+    }
   }
 
   draw(ctx: CanvasRenderingContext2D) {

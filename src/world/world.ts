@@ -21,6 +21,17 @@ export const MIN_LAUNCH_FUEL = 40
 
 export type Weather = 'clear' | 'wind' | 'rain' | 'hail' | 'storm'
 
+export function rollWeather(rng: Rng): Weather {
+  const wr = rng()
+  return wr < 0.55 ? 'clear' : wr < 0.72 ? 'wind' : wr < 0.86 ? 'rain' : wr < 0.95 ? 'hail' : 'storm'
+}
+
+export function rollWindFor(weather: Weather, rng: Rng): number {
+  if (weather === 'clear') return 0
+  const strength = weather === 'wind' ? range(rng, 50, 95) : range(rng, 15, 45)
+  return (rng() < 0.5 ? -1 : 1) * strength
+}
+
 // tiny stateless hash for precipitation streaks (rng must stay untouched)
 function whash(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
@@ -59,10 +70,15 @@ export class World {
   /** Global pirate grenade throttle so stacked pirates can't nade-spam. */
   pirateGrenadeCd = 0
 
-  // per-contract conditions, rolled in worldgen
+  // per-contract conditions, rolled in worldgen; weather then drifts over
+  // time — every 2-4 minutes it crossfades (wxFade) into a fresh roll
   quota = ORE_QUOTA
   weather: Weather = 'clear'
   windX = 0
+  wxFade = 1
+  wxTargetWind = 0
+  private nextWeather: Weather | null = null
+  private weatherT = 150
   private strikeT = 8
   private bolts: { x: number; gy: number; t: number }[] = []
 
@@ -125,6 +141,12 @@ export class World {
   }
 
   atWar(a: Faction, b: Faction): boolean { return factionsHostile(this.wars, a, b) }
+
+  /** Target loudness for the weather ambience bed (0 = silence). */
+  ambienceLevel(): number {
+    const AMB: Record<Weather, number> = { clear: 0, wind: 0.015, rain: 0.028, hail: 0.032, storm: 0.04 }
+    return AMB[this.weather] * this.wxFade
+  }
 
   reportDamage(victim: Entity, src: Entity | null) {
     // war flags live in entity onDamaged hooks; here: combat feel
@@ -384,8 +406,30 @@ export class World {
       }
     }
 
+    // weather drifts: fade the current system out, roll a new one in
+    if (!this.simulated) {
+      this.weatherT -= dt
+      if (this.weatherT <= 0 && !this.nextWeather) {
+        let next = rollWeather(this.rng)
+        if (next === this.weather) next = this.weather === 'clear' ? 'wind' : 'clear'
+        this.nextWeather = next
+        this.wxTargetWind = rollWindFor(next, this.rng)
+      }
+      if (this.nextWeather) {
+        this.wxFade = Math.max(0, this.wxFade - dt / 4)
+        if (this.wxFade <= 0) {
+          this.weather = this.nextWeather
+          this.nextWeather = null
+          this.weatherT = range(this.rng, 120, 240)
+        }
+      } else if (this.wxFade < 1) {
+        this.wxFade = Math.min(1, this.wxFade + dt / 4)
+      }
+      this.windX += (this.wxTargetWind - this.windX) * Math.min(1, dt * 0.4)
+    }
+
     // thunderstorms strike things; trees are natural lightning rods
-    if (this.weather === 'storm') {
+    if (this.weather === 'storm' && this.wxFade > 0.5) {
       this.strikeT -= dt
       if (this.strikeT <= 0) {
         this.strikeT = range(this.rng, 6, 14)
@@ -546,7 +590,7 @@ export class World {
       const hail = this.weather === 'hail'
       ctx.strokeStyle = PAL.accent
       ctx.fillStyle = PAL.white
-      ctx.globalAlpha = hail ? 0.5 : 0.3
+      ctx.globalAlpha = (hail ? 0.5 : 0.3) * this.wxFade
       ctx.lineWidth = 1
       const fall = hail ? 500 : 660
       for (let i = 0; i < 70; i++) {
@@ -564,7 +608,7 @@ export class World {
     } else if (this.weather === 'wind') {
       ctx.save()
       ctx.strokeStyle = PAL.dim
-      ctx.globalAlpha = 0.3
+      ctx.globalAlpha = 0.3 * this.wxFade
       ctx.lineWidth = 1
       for (let i = 0; i < 16; i++) {
         const px = (((whash(i) * 3800 + this.time * this.windX * 4) % viewW) + viewW) % viewW

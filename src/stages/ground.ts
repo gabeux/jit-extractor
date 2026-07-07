@@ -10,7 +10,8 @@ import { Pirate } from '../entities/pirate'
 import { Flare } from '../entities/pirateship'
 import { FlarePickup } from '../entities/loot'
 import { WORLD_W, MIN_LAUNCH_FUEL } from '../world/world'
-import { sfx } from '../audio/sfx'
+import { sfx, setWarDrums } from '../audio/sfx'
+import { Native } from '../entities/native'
 import { TUT } from '../ui/patscript'
 
 const GROUND_LEVEL = 1560
@@ -133,6 +134,21 @@ export class GroundStage implements Stage {
     if (nearLander && lander.ore >= w.quota) w.triggerShipEvent(null)
 
     w.update(dt)
+
+    // tribal war drums swell as angry natives close in, panned toward them
+    if (w.atWar('native', 'player') && !player.dead) {
+      let nd = Infinity, nx = 0
+      for (const e of w.entities) {
+        if (e instanceof Native && !e.dead) {
+          const d = Math.abs(e.x - player.x)
+          if (d < nd) { nd = d; nx = e.x }
+        }
+      }
+      const level = nd === Infinity ? 0 : Math.max(0, 1 - nd / 1100)
+      setWarDrums(Math.min(0.45, level), clamp((nx - player.x) / 600, -1, 1) * 0.8)
+    } else {
+      setWarDrums(0)
+    }
 
     if (player.dead) {
       if (w.simulated) {
@@ -588,7 +604,7 @@ export class GroundStage implements Stage {
     let hudY = 80
     if (w.weather !== 'clear') {
       const wx = { wind: 'STRONG WINDS', rain: 'RAIN', hail: 'HAIL', storm: 'THUNDERSTORM' }[w.weather]
-      text(ctx, `WX: ${wx}`, VIEW_W - 16, hudY, {
+      text(ctx, `WEATHER: ${wx}`, VIEW_W - 16, hudY, {
         size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'right',
       })
       hudY += 18

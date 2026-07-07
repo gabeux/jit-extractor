@@ -1,4 +1,4 @@
-import { World, WORLD_W } from './world'
+import { World, WORLD_W, rollWeather, rollWindFor } from './world'
 import { Player } from '../entities/player'
 import { Lander } from '../entities/lander'
 import { Pirate } from '../entities/pirate'
@@ -18,13 +18,11 @@ export function generateWorld(seed: number, runs = 0): World {
   // contract quota: the first drop is the standard 200, then 100..400 in 50s
   w.quota = runs === 0 ? 200 : 100 + irange(rng, 0, 6) * 50
 
-  // weather (the tutorial overrides this back to clear skies)
-  const wr = rng()
-  w.weather = wr < 0.55 ? 'clear' : wr < 0.72 ? 'wind' : wr < 0.86 ? 'rain' : wr < 0.95 ? 'hail' : 'storm'
-  if (w.weather !== 'clear') {
-    const strength = w.weather === 'wind' ? range(rng, 50, 95) : range(rng, 15, 45)
-    w.windX = (rng() < 0.5 ? -1 : 1) * strength
-  }
+  // weather (the tutorial overrides this back to clear skies; it also
+  // drifts over time — see World.update)
+  w.weather = rollWeather(rng)
+  w.windX = rollWindFor(w.weather, rng)
+  w.wxTargetWind = w.windX
 
   // planet quirks: rare on early contracts, expected by mission 10.
   // dying re-rolls the seed, so conditions re-randomize on every new run.

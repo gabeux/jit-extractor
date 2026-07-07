@@ -87,6 +87,67 @@ export function setWeatherAmbience(level: number) {
   ambGain!.gain.linearRampToValueAtTime(level, ctx.currentTime + 0.8)
 }
 
+// Tribal war drums: synthesized 6/8 stomp, gain driven by distance to the
+// angry tribe and panned toward them. Deliberately very low in the mix.
+const DRUM_PATTERN = [1, 0, 0, 0.65, 0, 0, 1, 0, 0.55, 0.8, 0, 0]
+let drumGain: GainNode | null = null
+let drumPan: StereoPannerNode | null = null
+let drumTimer: ReturnType<typeof setInterval> | null = null
+let drumStep = 0
+let drumLevel = 0
+
+function drumHit(accent: number) {
+  if (!ctx || !drumPan) return
+  const t = ctx.currentTime
+  const o = ctx.createOscillator()
+  o.type = 'sine'
+  o.frequency.setValueAtTime(accent >= 1 ? 130 : 165, t)
+  o.frequency.exponentialRampToValueAtTime(44, t + 0.16)
+  const g = ctx.createGain()
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.linearRampToValueAtTime(accent, t + 0.008)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22)
+  o.connect(g)
+  g.connect(drumPan)
+  o.start(t)
+  o.stop(t + 0.25)
+}
+
+export function setWarDrums(level: number, pan = 0) {
+  if (!ctx || !master) return
+  if (level <= 0.015) {
+    if (drumLevel > 0 && drumGain) {
+      drumGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 1.2)
+      drumLevel = 0
+    }
+    if (drumTimer !== null) {
+      clearInterval(drumTimer)
+      drumTimer = null
+      drumStep = 0
+    }
+    return
+  }
+  if (!drumGain) {
+    drumGain = ctx.createGain()
+    drumGain.gain.value = 0.0001
+    drumPan = ctx.createStereoPanner()
+    drumPan.connect(drumGain)
+    drumGain.connect(master)
+  }
+  if (drumTimer === null) {
+    drumTimer = setInterval(() => {
+      const a = DRUM_PATTERN[drumStep % DRUM_PATTERN.length]
+      drumStep++
+      if (a > 0 && Math.random() > 0.06) drumHit(a) // human hands miss sometimes
+    }, 190)
+  }
+  if (Math.abs(level - drumLevel) > 0.02) {
+    drumLevel = level
+    drumGain.gain.linearRampToValueAtTime(level * 0.5, ctx.currentTime + 0.5)
+  }
+  drumPan!.pan.value = Math.max(-0.85, Math.min(0.85, pan))
+}
+
 // Optional meme: drop a scream at public/sfx/wilhelm.mp3 and it plays
 // (very quietly) when the lander squashes someone. Missing file = silence.
 let wilhelmEl: HTMLAudioElement | null = null
