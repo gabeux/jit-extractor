@@ -169,18 +169,22 @@ export class FlightStage implements Stage {
     // HUD
     labeledBar(ctx, 14, 24, 120, lander.fuel / 100, S().hud.fuel, lander.fuel < 25 ? PAL.danger : PAL.warm)
     labeledBar(ctx, 14, 48, 120, lander.hp / lander.maxHp, S().flight.hull, lander.hp < 120 ? PAL.danger : PAL.pale)
+    // left HUD stack under the bars: weather, then the overweight warning —
+    // stacked so long translations never collide or clip
+    let ly = 74
     if (w.weather !== 'clear') {
       const wx = { wind: S().hud.wind, rain: S().hud.rain, hail: S().hud.hail, storm: S().hud.storm }[w.weather]
-      text(ctx, `${S().hud.weather}: ${wx}`, 14, 96, { size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'left' })
+      text(ctx, `${S().hud.weather}: ${wx}`, 14, ly, { size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'left' })
+      ly += 18
     }
     // overweight readout: thrust-to-weight sinks as cargo passes 200 ore
     const over = Math.max(0, Math.round(lander.ore) - 200)
     if (over > 0) {
       const twr = (600 / (1 + over / 200)) / 240
-      text(ctx, S().flight.twr(over, twr.toFixed(2)), 14, 74, {
+      text(ctx, S().flight.twr(over, twr.toFixed(2)), 14, ly, {
         size: 11, color: twr <= 1.05 ? PAL.danger : PAL.warm, align: 'left',
       })
-      drawKeyHint(ctx, S().hud.holdZVent, 14 + 62, 90, 10)
+      drawKeyHint(ctx, S().hud.holdZVent, 14, ly + 16, 10, 'left')
     }
 
     if (w.simulated) {

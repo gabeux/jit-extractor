@@ -104,13 +104,23 @@ export function textSegments(ctx: CanvasRenderingContext2D, segs: [string, strin
   ctx.restore()
 }
 
-/** Key-binding hint: "[E] USE · [Q] DROP" — bracketed keys pop in accent. */
-export function drawKeyHint(ctx: CanvasRenderingContext2D, s: string, cx: number, y: number, size = 10) {
+/** Key-binding hint: "[E] USE · [Q] DROP" — bracketed keys pop in accent.
+ * Centered on cx by default; align 'left' treats cx as the left edge
+ * (translations run long — centering them off a margin clips the screen). */
+export function drawKeyHint(ctx: CanvasRenderingContext2D, s: string, cx: number, y: number, size = 10, align: 'center' | 'left' = 'center') {
   const segs: [string, string][] = []
   for (const part of s.split(/(\[[^\]]+\])/)) {
     if (!part) continue
     if (part.startsWith('[')) segs.push([part.slice(1, -1), PAL.accent])
     else segs.push([part, PAL.pale])
+  }
+  if (align === 'left') {
+    ctx.save()
+    ctx.font = `${size}px "Courier New", monospace`
+    const total = segs.reduce((acc, [t]) => acc + ctx.measureText(t).width, 0)
+    ctx.restore()
+    textSegments(ctx, segs, cx + total / 2, y, size)
+    return
   }
   textSegments(ctx, segs, cx, y, size)
 }
