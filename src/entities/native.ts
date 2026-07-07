@@ -19,6 +19,7 @@ export class Native extends Entity {
   private lungeT = 0
   private lungeDir = 1
   private standing = false // hysteresis: don't flap between walk/stop at the range edge
+  private hopCd = 0
   private retargetT = Math.random() * 0.4
   target: Entity | null = null
   private personalAggro: Entity | null = null
@@ -37,6 +38,7 @@ export class Native extends Entity {
   update(w: World, dt: number) {
     this.stepPhysics(w, dt)
     this.attackCd -= dt
+    this.hopCd -= dt
     if (this.lungeT > 0) this.lungeT -= dt
     this.retargetT -= dt
     if (this.retargetT <= 0) {
@@ -65,6 +67,11 @@ export class Native extends Entity {
         this.lungeT = LUNGE_DUR
         this.lungeDir = Math.sign(dx) || 1
         sfx.spear()
+      } else if (this.grounded && this.hopCd <= 0 && Math.abs(dx) < 70 && this.cy - t.cy > 32) {
+        // target perched above (ledge, steep incline): leap at them instead
+        // of jittering underneath, forever out of spear reach
+        this.vy = -340
+        this.hopCd = 1.1
       }
     } else if (this.vengeful) {
       // march toward the player's landing site

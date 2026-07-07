@@ -85,9 +85,13 @@ export class DockingStage implements Stage {
       this.quotaMet ? 'QUOTA_MET' :
       ore >= ORE_QUOTA / 2 ? 'QUOTA_HALF' : 'QUOTA_MISSED'
 
-    // simulated (tutorial) run: P.A.T. debriefs, nothing is recorded anywhere
+    // simulated (tutorial) run: P.A.T. debriefs, nothing is recorded anywhere —
+    // and no bills: a negative training ledger just discourages new players
     if (w.simulated) {
       this.game.endTutorial('done')
+      this.equipValue = 0
+      this.fieldValue = Math.max(0, this.fieldValue)
+      this.profit = this.oreValue + this.fuelValue + this.fieldValue + this.salvageValue
       this.launchProbe = false
       this.lines.push(
         { t: 'P.A.T.: Simulation complete! You dropped, you mined, you made it back.', c: PAL.accent },

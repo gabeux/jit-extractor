@@ -10,6 +10,7 @@ const FLOOR_Y = 330
 const HULL_L = 270
 const HULL_R = 700
 const CONSOLE_X = 620
+const HELP_X = 520 // P.A.T. terminal: retake the tutorial (offset so E never clashes)
 const POD_X = 745
 
 export class ShipStage implements Stage {
@@ -52,6 +53,12 @@ export class ShipStage implements Stage {
       this.launching = 0
       sfx.launch()
     }
+    // P.A.T. terminal: bring the tutorial offer back up anytime
+    if (Math.abs(this.px - HELP_X) < 30 && input.wasPressed('KeyE') && !this.game.tutorial) {
+      let seen = true
+      try { seen = localStorage.getItem(PAT_INTRO_KEY) === '1' } catch { /* default returning */ }
+      this.game.pat.show(patIntro(this.game, seen))
+    }
   }
 
   draw(ctx: CanvasRenderingContext2D) {
@@ -68,6 +75,9 @@ export class ShipStage implements Stage {
 
     if (this.launching < 0 && Math.abs(this.px - CONSOLE_X) < 34) {
       promptAt(ctx, CONSOLE_X, FLOOR_Y - 58, 'E — LAUNCH POD')
+    }
+    if (this.launching < 0 && Math.abs(this.px - HELP_X) < 30) {
+      promptAt(ctx, HELP_X, FLOOR_Y - 58, 'E — P.A.T. TERMINAL')
     }
 
     // pod drops away on launch
@@ -163,6 +173,14 @@ export class ShipStage implements Stage {
     ctx.fillRect(CONSOLE_X - 10, FLOOR_Y - 26, 20, 26)
     ctx.fillStyle = Math.sin(this.time * 4) > 0 ? PAL.accent : PAL.dim
     ctx.fillRect(CONSOLE_X - 7, FLOOR_Y - 38, 14, 10)
+    // P.A.T. terminal: same body, a gently pulsing ? on the screen
+    ctx.fillStyle = PAL.faint
+    ctx.fillRect(HELP_X - 10, FLOOR_Y - 26, 20, 26)
+    ctx.fillStyle = '#0d1620'
+    ctx.fillRect(HELP_X - 7, FLOOR_Y - 38, 14, 10)
+    text(ctx, '?', HELP_X, FLOOR_Y - 30, {
+      size: 9, color: PAL.accent, alpha: 0.6 + Math.sin(this.time * 2.2) * 0.4,
+    })
     // pod bay clamp under the hull
     ctx.strokeStyle = PAL.dim
     ctx.beginPath()

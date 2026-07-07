@@ -411,6 +411,11 @@ export class GroundStage implements Stage {
     } else {
       // one prompt: whatever E is focused on (V cycles when things overlap)
       const focus = this.focus
+      // the V hint rides directly under whatever prompt it applies to —
+      // parked at the bottom of the screen nobody ever saw it
+      const vHint = this.focusables.length > 1
+        ? `[V] SWITCH TARGET (${this.focusIdx + 1}/${this.focusables.length})`
+        : null
       if (focus && focus.e) {
         const e = focus.e
         const label =
@@ -418,10 +423,9 @@ export class GroundStage implements Stage {
           focus.kind === 'crate' ? 'E — PICK UP' :
           focus.kind === 'ship' ? 'E — ESCAPE TO ORBIT' :
           'HOLD E — DECONSTRUCT'
-        promptAt(ctx, ...this.toScreen(e.x, e.y - e.h - 14, camX, camY), label)
-      }
-      if (this.focusables.length > 1) {
-        drawKeyHint(ctx, `[V] SWITCH TARGET (${this.focusIdx + 1}/${this.focusables.length})`, VIEW_W / 2, 508)
+        const [px2, py2] = this.toScreen(e.x, e.y - e.h - 14, camX, camY)
+        promptAt(ctx, px2, py2, label)
+        if (vHint) drawKeyHint(ctx, vHint, px2, py2 + 15, 9)
       }
       if (focus?.kind !== 'lander') drawKeyHint(ctx, '[CLICK] SHOOT · [G] GRENADE · [SPACE] JUMP · [SHIFT] SPRINT', VIEW_W / 2, 524)
     }
@@ -472,13 +476,19 @@ export class GroundStage implements Stage {
           ctx.closePath()
           ctx.fill()
           if (selected) {
-            const label = !ready ? 'LAUNCH (NO FUEL)' : quotaMet ? 'LAUNCH!' : 'LAUNCH (QUOTA SHORT)'
-            text(ctx, label, cx, r.y - 6, { size: 10, color: ready ? (quotaMet ? PAL.good : PAL.warm) : PAL.dim })
+            const color = ready ? (quotaMet ? PAL.good : PAL.warm) : PAL.dim
+            const sub = !ready ? '(NO FUEL)' : quotaMet ? null : '(QUOTA SHORT)'
+            text(ctx, 'BOARD & LAUNCH', cx, r.y - (sub ? 17 : 6), { size: 10, color })
+            if (sub) text(ctx, sub, cx, r.y - 6, { size: 9, color })
           }
         }
       }
       const r0 = slots[0]
-      drawKeyHint(ctx, '[Q]/[E] SELECT · [F] OR [CLICK] USE', r0.x + (slots.length * (SLOT + 4)) / 2, r0.y + SLOT + 14, 9)
+      const hx = r0.x + (slots.length * (SLOT + 4)) / 2
+      drawKeyHint(ctx, '[Q]/[E] SELECT · [F] OR [CLICK] USE', hx, r0.y + SLOT + 14, 9)
+      if (this.focusables.length > 1) {
+        drawKeyHint(ctx, `[V] SWITCH TARGET (${this.focusIdx + 1}/${this.focusables.length})`, hx, r0.y + SLOT + 27, 9)
+      }
     }
   }
 

@@ -37,7 +37,7 @@ export function patIntro(game: Game, returning: boolean): DialogueNode {
       {
         label: 'Who am I? What is this place?',
         next: {
-          text: "Oh no. Did they overtune the cryogenics again? You're an Extractor: a highly capable, multi-role planetary explorer tasked with filling quotas for spikes in demand from our clients. Without you, production would halt, empires would crumble, and what's worse: there'd be no more- [SEGMENT LOST]",
+          text: "Oh no. Did they overtune the cryogenics again? You're an Extractor: a highly capable, multi-role planetary explorer tasked with filling quotas for spikes in demand from our clients. Without you, production would halt, empires would crumble, and what's worse: there'd be no more profits.",
           choices: [{ label: 'I see!', next: () => patIntro(game, returning) }],
         },
       },
@@ -78,6 +78,6 @@ export const TUT = {
     choices: [{ label: 'Only when hurt. Got it.' }],
   } as DialogueNode,
   harvest: "When an extractor's bar is full, hold [E] on it to pack it into a crate, haul it to the lander and press [E] to store it. The ore banks toward your quota.",
-  launch: "Fuel at 40+? Cargo aboard? Then board via the rack's ▲ LAUNCH slot. Real drops want 200 ore - but this is a sim, so leave whenever you're ready.",
+  launch: "Fuel at 40+? Cargo aboard? Then use the rack's ▲ BOARD & LAUNCH slot. Real drops want 200 ore - but this is a sim, so leave whenever you're ready.",
   ascent: "Point up, hold [W], and don't stop until orbit. I'll handle the paperwork.",
 }
