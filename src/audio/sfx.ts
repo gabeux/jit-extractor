@@ -143,7 +143,7 @@ export function setWarDrums(level: number, pan = 0) {
   }
   if (Math.abs(level - drumLevel) > 0.02) {
     drumLevel = level
-    drumGain.gain.linearRampToValueAtTime(level * 0.5, ctx.currentTime + 0.5)
+    drumGain.gain.linearRampToValueAtTime(level * 1.1, ctx.currentTime + 0.5)
   }
   drumPan!.pan.value = Math.max(-0.85, Math.min(0.85, pan))
 }

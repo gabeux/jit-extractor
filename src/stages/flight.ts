@@ -7,6 +7,7 @@ import { Pirate } from '../entities/pirate'
 import { Native } from '../entities/native'
 import { WORLD_W } from '../world/world'
 import { sfx, wilhelm } from '../audio/sfx'
+import { S } from '../i18n'
 
 const GRAV = 240
 const SAFE_VY = 140
@@ -112,8 +113,8 @@ export class FlightStage implements Stage {
       // overweight ascent hop: the lander physically can't climb (TWR <= 1).
       // Tell the player why instead of billing them for the physics lesson.
       if (this.mode === 'ascent' && (600 / massFactor) / GRAV <= 1.02) {
-        w.addFloater(lander.x, gy - 74, 'TOO HEAVY TO FLY', PAL.danger)
-        w.addFloater(lander.x, gy - 58, 'HOLD Z — VENT ORE', PAL.warm)
+        w.addFloater(lander.x, gy - 74, S().flight.tooHeavy, PAL.danger)
+        w.addFloater(lander.x, gy - 58, S().flight.holdZ, PAL.warm)
         w.terrain.flatten(lander.x, 26)
         this.game.gotoGround()
         return
@@ -122,12 +123,12 @@ export class FlightStage implements Stage {
         // free-fall is lethal: sensitivity high enough that terminal velocity kills
         const dmg = Math.round((impact - SAFE_VY) * 2.0)
         lander.damage(w, dmg, null)
-        w.addFloater(lander.x, gy - 60, `HARD LANDING -${dmg}`, PAL.danger)
+        w.addFloater(lander.x, gy - 60, S().flight.hardLanding(dmg), PAL.danger)
         w.shake = Math.max(w.shake, 8)
       }
       if (slope > 0.42 && !lander.dead) {
         lander.damage(w, 25, null)
-        w.addFloater(lander.x, gy - 74, 'ROUGH GROUND -25', PAL.danger)
+        w.addFloater(lander.x, gy - 74, S().flight.roughGround, PAL.danger)
       }
       w.terrain.flatten(lander.x, 26)
       // anyone under (or hugging) the landing legs has a very bad day
@@ -140,14 +141,14 @@ export class FlightStage implements Stage {
         }
       }
       if (lander.dead) {
-        this.game.terminate('LANDER DESTROYED ON IMPACT')
+        this.game.terminate(S().dock.reasonImpact)
       } else {
         this.game.gotoGround()
       }
       return
     }
 
-    if (lander.dead) this.game.terminate('LANDER SHOT DOWN')
+    if (lander.dead) this.game.terminate(S().dock.reasonShot)
   }
 
   draw(ctx: CanvasRenderingContext2D) {
@@ -166,24 +167,24 @@ export class FlightStage implements Stage {
     ctx.restore()
 
     // HUD
-    labeledBar(ctx, 14, 24, 120, lander.fuel / 100, 'FUEL', lander.fuel < 25 ? PAL.danger : PAL.warm)
-    labeledBar(ctx, 14, 48, 120, lander.hp / lander.maxHp, 'HULL', lander.hp < 120 ? PAL.danger : PAL.pale)
+    labeledBar(ctx, 14, 24, 120, lander.fuel / 100, S().hud.fuel, lander.fuel < 25 ? PAL.danger : PAL.warm)
+    labeledBar(ctx, 14, 48, 120, lander.hp / lander.maxHp, S().flight.hull, lander.hp < 120 ? PAL.danger : PAL.pale)
     if (w.weather !== 'clear') {
-      const wx = { wind: 'STRONG WINDS', rain: 'RAIN', hail: 'HAIL', storm: 'THUNDERSTORM' }[w.weather]
-      text(ctx, `WEATHER: ${wx}`, 14, 96, { size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'left' })
+      const wx = { wind: S().hud.wind, rain: S().hud.rain, hail: S().hud.hail, storm: S().hud.storm }[w.weather]
+      text(ctx, `${S().hud.weather}: ${wx}`, 14, 96, { size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'left' })
     }
     // overweight readout: thrust-to-weight sinks as cargo passes 200 ore
     const over = Math.max(0, Math.round(lander.ore) - 200)
     if (over > 0) {
       const twr = (600 / (1 + over / 200)) / 240
-      text(ctx, `OVERWEIGHT +${over} · TWR ${twr.toFixed(2)}`, 14, 74, {
+      text(ctx, S().flight.twr(over, twr.toFixed(2)), 14, 74, {
         size: 11, color: twr <= 1.05 ? PAL.danger : PAL.warm, align: 'left',
       })
-      drawKeyHint(ctx, 'HOLD [Z] — VENT ORE', 14 + 62, 90, 10)
+      drawKeyHint(ctx, S().hud.holdZVent, 14 + 62, 90, 10)
     }
 
     if (w.simulated) {
-      text(ctx, '— SIMULATED DROP —', VIEW_W / 2, 26, {
+      text(ctx, S().hud.simBadge, VIEW_W / 2, 26, {
         size: 11, color: PAL.accent, alpha: 0.7 + Math.sin(this.t * 2.5) * 0.3,
       })
     }
@@ -192,7 +193,7 @@ export class FlightStage implements Stage {
       text(ctx, `▼ ${Math.max(0, Math.round(lander.vy))}`, VIEW_W - 40, 30, {
         size: 14, color: fast ? PAL.danger : PAL.good, align: 'right',
       })
-      drawKeyHint(ctx, '[W] THRUST · [A/D] STEER — LAND SOFTLY', VIEW_W / 2, 524)
+      drawKeyHint(ctx, S().flight.thrustHint, VIEW_W / 2, 524)
     } else {
       // blinking TO ORBIT arrow
       const blink = Math.sin(performance.now() / 180) > -0.3
@@ -204,9 +205,9 @@ export class FlightStage implements Stage {
         ctx.lineTo(VIEW_W / 2, 28)
         ctx.closePath()
         ctx.fill()
-        text(ctx, 'TO ORBIT', VIEW_W / 2, 62, { size: 12, color: PAL.accent })
+        text(ctx, S().flight.toOrbit, VIEW_W / 2, 62, { size: 12, color: PAL.accent })
       }
-      if (lander.fuel <= 0) text(ctx, 'OUT OF FUEL', VIEW_W / 2, 90, { size: 12, color: PAL.danger })
+      if (lander.fuel <= 0) text(ctx, S().flight.outOfFuel, VIEW_W / 2, 90, { size: 12, color: PAL.danger })
     }
   }
 }

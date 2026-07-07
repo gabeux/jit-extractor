@@ -5,6 +5,7 @@ import { PAL } from './palette'
 import { Scoreboard } from './ui/scoreboard'
 import { PatDialogue } from './ui/dialogue'
 import { Tutorial, SIM_MODS } from './tutorial/tutorial'
+import { LangPicker } from './ui/langpicker'
 import { setTutorialState } from './ui/patscript'
 import { sendRunEnd } from './net/analytics'
 import { setWeatherAmbience, setWarDrums } from './audio/sfx'
@@ -34,6 +35,7 @@ export class Game {
   typingName = false
   scoreboard = new Scoreboard()
   pat = new PatDialogue()
+  langPicker = new LangPicker()
   tutorial: Tutorial | null = null
   planet: Planet = { system: '', name: '' }
   stage: Stage
@@ -133,6 +135,11 @@ export class Game {
   }
 
   update(dt: number) {
+    // first launch: pick a language before anything else moves
+    if (this.langPicker.active) {
+      this.langPicker.update(dt, this.input)
+      return
+    }
     if (this.input.wasPressed('KeyM')) this.music.toggle()
     if (this.input.wasPressed('KeyN') && !this.typingName) this.music.next()
     // B doubles as BUILD while carrying a crate — music only when it's free
@@ -171,6 +178,7 @@ export class Game {
     this.drawMusicCredit(ctx)
     this.scoreboard.draw(ctx)
     this.pat.draw(ctx)
+    this.langPicker.draw(ctx, this.input)
   }
 
   /** Cinematic "NOW PLAYING" fade, bottom-left, just above the HP pips. */

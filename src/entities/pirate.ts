@@ -9,6 +9,7 @@ import { OreDrop, FlarePickup } from './loot'
 import type { World } from '../world/world'
 import { PAL } from '../palette'
 import { sfx } from '../audio/sfx'
+import { S } from '../i18n'
 
 const SIGHT = 320
 
@@ -24,6 +25,8 @@ export class Pirate extends Entity {
   private retargetT = Math.random() * 0.4
   private strafeT = 0
   private strafeDir = 0
+  private patrolOff = 0
+  private patrolNextT = 0
   private blockedShots = 0 // consecutive shots fired into terrain
   private repositionT = 0  // advancing for a better angle, holding fire
   target: Entity | null = null
@@ -147,7 +150,25 @@ export class Pirate extends Entity {
       this.vx = d > 240 ? Math.sign(prop.x - this.x) * 95 : 0
       return
     }
-    // 4. nothing left -> board the ship
+    // 4. idle crew: rush a lingering player, otherwise patrol the perimeter
+    // instead of glueing to the hull where nobody can pick them off
+    if (!w.squadBoarding) {
+      const pl = w.player
+      if (!pl.dead && !pl.inLander && Math.abs(pl.x - this.x) < 380) {
+        this.vx = Math.abs(pl.x - this.x) > 200 ? Math.sign(pl.x - this.x) * 95 : 0
+        return
+      }
+      if (ship) {
+        if (w.time > this.patrolNextT) {
+          this.patrolNextT = w.time + 2 + Math.random() * 3
+          this.patrolOff = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 160)
+        }
+        const post = ship.x + this.patrolOff
+        this.vx = Math.abs(post - this.x) > 16 ? Math.sign(post - this.x) * 60 : 0
+        return
+      }
+    }
+    // 5. nothing left -> board the ship
     if (w.squadBoarding && ship && ship.state === 'landed') {
       if (Math.abs(ship.x - this.x) > 22) {
         this.vx = Math.sign(ship.x - this.x) * 95
@@ -179,7 +200,7 @@ export class Pirate extends Entity {
     } else {
       this.vx = 0
       ship.looted += this.carryingOre
-      w.addFloater(ship.x, ship.y - 50, `PIRATES LOOTED ${this.carryingOre} ORE`, PAL.danger)
+      w.addFloater(ship.x, ship.y - 50, S().world.looted(this.carryingOre), PAL.danger)
       this.carryingOre = 0
     }
   }
@@ -290,7 +311,7 @@ export class Pirate extends Entity {
       const f = new FlarePickup(this.x, this.y - 6)
       f.vy = -80
       w.spawn(f)
-      w.addFloater(this.x, this.cy - 20, 'DISTRESS FLARE DROPPED', PAL.danger)
+      w.addFloater(this.x, this.cy - 20, S().world.flareDropped, PAL.danger)
     }
     if (src && src.faction === 'player') w.onPirateKilled()
   }

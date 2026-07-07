@@ -75,62 +75,62 @@ function spawnWave(game: Game) {
 
 const STEPS: Step[] = [
   { // walk to the ship console and drop
-    enter: (g) => g.pat.hint(TUT.board),
+    enter: (g) => g.pat.hint(TUT().board),
     pointer: () => [620, 292], // the ship console screen (CONSOLE_X, FLOOR_Y-38)
     done: (g) => g.stage.name === 'descent',
   },
   { // controls briefing — blocking, so the lander hangs safely while reading
-    enter: (g) => g.pat.show(TUT.flightIntro),
+    enter: (g) => g.pat.show(TUT().flightIntro),
     done: (g) => !g.pat.open,
   },
   {
-    enter: (g) => g.pat.hint(TUT.descent),
+    enter: (g) => g.pat.hint(TUT().descent),
     pointer: () => [908, 32], // the ▼ velocity readout
     done: onGround,
   },
   {
-    enter: (g) => g.pat.show(TUT.groundIntro),
+    enter: (g) => g.pat.show(TUT().groundIntro),
     done: (g) => !g.pat.open,
   },
   {
-    enter: (g) => g.pat.hint(TUT.turretGrab),
+    enter: (g) => g.pat.hint(TUT().turretGrab),
     pointer: landerPoint,
     done: (g) => g.world?.player.carrying?.kind === 'turret',
   },
   {
-    enter: (g) => g.pat.hint(TUT.turretBuild),
+    enter: (g) => g.pat.hint(TUT().turretBuild),
     done: (g) => hasBuilding(g, 'turret'),
   },
   {
-    enter: (g) => g.pat.show(TUT.grenadeTalk),
+    enter: (g) => g.pat.show(TUT().grenadeTalk),
     done: (g) => !g.pat.open,
   },
   {
-    enter: (g) => g.pat.hint(TUT.grenadeThrow),
+    enter: (g) => g.pat.hint(TUT().grenadeThrow),
     done: (g) => g.world?.entities.some((e) => e instanceof Grenade) ?? false,
   },
   { // the scripted two-front attack: enemies hang frozen while this is read
-    enter: (g) => { spawnWave(g); g.pat.show(TUT.wave) },
+    enter: (g) => { spawnWave(g); g.pat.show(TUT().wave) },
     done: (g) => !g.pat.open,
   },
   { // the fight itself: no arrow, just the reminder that retreat exists
-    enter: (g) => g.pat.hint(TUT.waveFight),
+    enter: (g) => g.pat.hint(TUT().waveFight),
     done: (g) => waveUnits.every((e) => e.dead) || !onGround(g),
   },
   {
     enter: (g) => {
       g.world?.wars.delete(warKey('native', 'player')) // the grudge was scripted
-      g.pat.show(TUT.waveDone)
+      g.pat.show(TUT().waveDone)
     },
     done: (g) => !g.pat.open,
   },
   {
-    enter: (g) => g.pat.hint(TUT.fuelgen),
+    enter: (g) => g.pat.hint(TUT().fuelgen),
     pointer: (g) => (g.world?.player.carrying ? null : landerPoint(g)),
     done: (g) => hasBuilding(g, 'fuelgen'),
   },
   {
-    enter: (g) => g.pat.hint(TUT.drill),
+    enter: (g) => g.pat.hint(TUT().drill),
     pointer: (g) => {
       const w = g.world
       if (!w) return null
@@ -143,29 +143,29 @@ const STEPS: Step[] = [
     done: (g) => hasBuilding(g, 'drill'),
   },
   {
-    enter: (g) => g.pat.hint(TUT.drone),
+    enter: (g) => g.pat.hint(TUT().drone),
     pointer: (g) => (g.world?.player.carrying ? null : landerPoint(g)),
     done: (g) => g.world?.entities.some((e) => e instanceof Drone && !e.dead) ?? false,
   },
   {
-    enter: (g) => g.pat.show(TUT.medikit),
+    enter: (g) => g.pat.show(TUT().medikit),
     done: (g) => !g.pat.open,
   },
   { // pack-up lesson: a pause, not a task — the drone may already have done it
-    enter: (g) => g.pat.show(TUT.harvest),
+    enter: (g) => g.pat.show(TUT().harvest),
     done: (g) => !g.pat.open,
   },
   {
-    enter: (g) => g.pat.show(TUT.audits),
+    enter: (g) => g.pat.show(TUT().audits),
     done: (g) => !g.pat.open,
   },
   {
-    enter: (g) => g.pat.hint(TUT.launch),
+    enter: (g) => g.pat.hint(TUT().launch),
     pointer: landerPoint,
     done: (g) => g.stage.name === 'ascent',
   },
   {
-    enter: (g) => g.pat.hint(TUT.ascent),
+    enter: (g) => g.pat.hint(TUT().ascent),
     done: (g) => g.stage.name === 'docking', // docking marks the tutorial done
   },
 ]

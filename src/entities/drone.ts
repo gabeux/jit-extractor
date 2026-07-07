@@ -4,6 +4,7 @@ import { OreDrop } from './loot'
 import type { World } from '../world/world'
 import { PAL } from '../palette'
 import { sfx } from '../audio/sfx'
+import { S } from '../i18n'
 
 const SPEED = 170
 const CARRY_MAX = 30
@@ -72,7 +73,7 @@ export class Drone extends Entity {
         if (this.carrying > 0) {
           // deposit
           w.lander.ore += this.carrying
-          w.addFloater(home.x, home.y - 64, `+${this.carrying} ORE`, PAL.good)
+          w.addFloater(home.x, home.y - 64, S().world.plusOre(this.carrying), PAL.good)
           this.carrying = 0
           sfx.pickup()
           this.phase = 'up'

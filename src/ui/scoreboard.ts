@@ -2,18 +2,15 @@ import { PAL } from '../palette'
 import { VIEW_W, VIEW_H, text, drawKeyHint } from '../render'
 import type { Input } from '../input'
 import { fetchBoard, type Board, type ScoreEntry } from '../net/leaderboard'
+import { S } from '../i18n'
 import { sfx } from '../audio/sfx'
 
 const MEDALS = ['#e8c35a', '#c0c8d0', '#c08a5a'] // gold, silver, bronze
 const TABS = ['profit', 'time', 'losses'] as const
 type Tab = (typeof TABS)[number]
 
-const TAB_LABELS: Record<Tab, string> = { profit: 'PROFIT', time: 'TIME', losses: 'LOSSES' }
-const TAB_HEADERS: Record<Tab, string> = {
-  profit: 'MOST PROFITABLE EXTRACTORS',
-  time: 'FASTEST QUOTA-MEETING EXTRACTORS',
-  losses: 'MOST CATASTROPHIC EXTRACTORS',
-}
+const tabLabels = (): Record<Tab, string> => ({ profit: S().score.profit, time: S().score.time, losses: S().score.losses })
+const tabHeaders = (): Record<Tab, string> => ({ profit: S().score.hProfit, time: S().score.hTime, losses: S().score.hLosses })
 const RAMBO_KEY = 'jit-show-rambos'
 
 export function fmtTime(ms: number): string {
@@ -111,19 +108,19 @@ export class Scoreboard {
       const x = VIEW_W / 2 + (i - 1) * 130
       const active = t === this.tab
       this.tabBoxes[i] = new DOMRect(x - 55, 66, 110, 30)
-      text(ctx, TAB_LABELS[t], x, 82, { size: 14, color: active ? PAL.accent : PAL.dim })
+      text(ctx, tabLabels()[t], x, 82, { size: 14, color: active ? PAL.accent : PAL.dim })
       if (active) {
         ctx.fillStyle = PAL.accent
         ctx.fillRect(x - 30, 90, 60, 2)
       }
     }
-    text(ctx, TAB_HEADERS[this.tab], VIEW_W / 2, 114, { size: 11, color: PAL.pale })
+    text(ctx, tabHeaders()[this.tab], VIEW_W / 2, 114, { size: 11, color: PAL.pale })
 
     const rows = this.rows()
     if (this.loading) {
-      text(ctx, 'CONTACTING HQ…', VIEW_W / 2, 260, { size: 12, color: PAL.dim })
+      text(ctx, S().score.contacting, VIEW_W / 2, 260, { size: 12, color: PAL.dim })
     } else if (rows.length === 0) {
-      const empty = this.tab === 'losses' ? 'NO DISASTERS YET. DISAPPOINTING.' : 'NO RECORDS YET — GO MAKE MONEY'
+      const empty = this.tab === 'losses' ? S().score.emptyLoss : S().score.empty
       text(ctx, empty, VIEW_W / 2, 260, { size: 12, color: PAL.dim })
     } else {
       for (let i = 0; i < Math.min(rows.length, 12); i++) {
@@ -170,11 +167,11 @@ export class Scoreboard {
       ctx.fillStyle = PAL.accent
       ctx.fillRect(bx + 2, by - 7, 6, 6)
     }
-    text(ctx, 'SHOW SURVIVORS ☠', bx + 18, by, { size: 10, color: PAL.pale, align: 'left' })
+    text(ctx, S().score.survivors, bx + 18, by, { size: 10, color: PAL.pale, align: 'left' })
 
     if (this.board?.offline) {
-      text(ctx, 'OFFLINE — LOCAL RECORDS ONLY', px + pw - 26, 446, { size: 9, color: PAL.warm, align: 'right' })
+      text(ctx, S().score.offline, px + pw - 26, 446, { size: 9, color: PAL.warm, align: 'right' })
     }
-    drawKeyHint(ctx, 'CLICK OR [Q]/[E] SWITCH TAB · [R] SURVIVORS · [TAB] CLOSE', VIEW_W / 2, 474, 10)
+    drawKeyHint(ctx, S().score.hints, VIEW_W / 2, 474, 10)
   }
 }

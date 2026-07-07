@@ -4,6 +4,7 @@ import { VIEW_W, VIEW_H, drawStars, drawPlanetArc, text, drawKeyHint } from '../
 import { promptAt } from '../ui/hud'
 import { sfx } from '../audio/sfx'
 import { patIntro, tutorialState, PAT_INTRO_KEY } from '../ui/patscript'
+import { S, cycleLang } from '../i18n'
 
 // Orbit view: your ship above the spinning planet. Walk to the console, hit E.
 const FLOOR_Y = 330
@@ -53,6 +54,11 @@ export class ShipStage implements Stage {
       this.launching = 0
       sfx.launch()
     }
+    // L cycles the language while aboard (the "menu" of this game)
+    if (input.wasPressed('KeyL')) {
+      cycleLang()
+      sfx.blip()
+    }
     // P.A.T. terminal: bring the tutorial offer back up anytime
     if (Math.abs(this.px - HELP_X) < 30 && input.wasPressed('KeyE') && !this.game.tutorial) {
       let seen = true
@@ -74,30 +80,30 @@ export class ShipStage implements Stage {
     if (this.launching < 0) this.drawFigure(ctx, this.px, FLOOR_Y)
 
     if (this.launching < 0 && Math.abs(this.px - CONSOLE_X) < 34) {
-      promptAt(ctx, CONSOLE_X, FLOOR_Y - 58, 'E — LAUNCH POD')
+      promptAt(ctx, CONSOLE_X, FLOOR_Y - 58, S().prompts.launchPod)
     }
     if (this.launching < 0 && Math.abs(this.px - HELP_X) < 30) {
-      promptAt(ctx, HELP_X, FLOOR_Y - 58, 'E — P.A.T. TERMINAL')
+      promptAt(ctx, HELP_X, FLOOR_Y - 58, S().prompts.patTerminal)
     }
 
     // pod drops away on launch
     if (this.launching >= 0) {
       const t = this.launching
       this.drawPod(ctx, POD_X, FLOOR_Y + 26 + t * t * 500)
-      text(ctx, 'POD AWAY', VIEW_W / 2, 120, { size: 14, color: PAL.accent, alpha: Math.min(1, t * 3) })
+      text(ctx, S().ship.podAway, VIEW_W / 2, 120, { size: 14, color: PAL.accent, alpha: Math.min(1, t * 3) })
     } else {
       this.drawPod(ctx, POD_X, FLOOR_Y + 26)
     }
 
-    text(ctx, `CONTRACT #${this.game.runsCompleted + 1}${this.game.dreamWake ? '?' : ''}`, VIEW_W / 2, 40, { size: 13, color: PAL.dim })
-    text(ctx, 'IN ORBIT — LOW PLANET ORBIT', VIEW_W / 2, 58, { size: 10, color: PAL.faint })
+    text(ctx, S().ship.contract(this.game.runsCompleted + 1) + (this.game.dreamWake ? '?' : ''), VIEW_W / 2, 40, { size: 13, color: PAL.dim })
+    text(ctx, S().ship.inOrbit, VIEW_W / 2, 58, { size: 10, color: PAL.faint })
     // cinematic planet card, bottom-right (music credit owns bottom-left)
     {
       const a = Math.max(0, Math.min(1, this.time / 1.2, (10 - this.time) / 1.6))
       if (a > 0) {
         const slide = (1 - Math.min(1, this.time / 1.2)) * 14
         const x = VIEW_W - 16 + slide
-        text(ctx, 'NOW ORBITING', x, 438, { size: 9, color: PAL.accent, align: 'right', alpha: a * 0.9 })
+        text(ctx, S().ship.nowOrbiting, x, 438, { size: 9, color: PAL.accent, align: 'right', alpha: a * 0.9 })
         ctx.save()
         ctx.globalAlpha = a * 0.6
         ctx.fillStyle = PAL.accent
@@ -107,10 +113,10 @@ export class ShipStage implements Stage {
         ctx.font = 'bold 11px "Courier New", monospace'
         ctx.fillStyle = PAL.pale
         ctx.textAlign = 'right'
-        ctx.fillText(`${this.game.planet.system} SYSTEM`, x, 458)
+        ctx.fillText(S().ship.system(this.game.planet.system), x, 458)
         ctx.restore()
         text(ctx, this.game.planet.name, x, 478, { size: 17, color: PAL.white, align: 'right', alpha: a })
-        text(ctx, 'Just in Time, Extractor.', x, 494, { size: 10, color: PAL.warm, align: 'right', alpha: a * 0.9 })
+        text(ctx, S().ship.justInTime, x, 494, { size: 10, color: PAL.warm, align: 'right', alpha: a * 0.9 })
       }
     }
     // author credit: first orbit only, after the system name has had its moment
@@ -129,9 +135,9 @@ export class ShipStage implements Stage {
     if (this.game.dreamWake) {
       // slow, uneasy fade in and out
       const a = Math.max(0, Math.min(1, this.time / 2.5, (9 - this.time) / 2.5))
-      text(ctx, 'Was that just a dream?', VIEW_W / 2, 96, { size: 14, color: PAL.warm, alpha: a })
+      text(ctx, S().ship.dream, VIEW_W / 2, 96, { size: 14, color: PAL.warm, alpha: a })
     }
-    drawKeyHint(ctx, '[A/D] MOVE · [E] USE · [M] MUSIC · [N/B] TRACK · [TAB] SCOREBOARD', VIEW_W / 2, 524)
+    drawKeyHint(ctx, S().ship.hints, VIEW_W / 2, 524)
   }
 
   private drawShip(ctx: CanvasRenderingContext2D) {

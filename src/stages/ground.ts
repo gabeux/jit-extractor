@@ -4,7 +4,7 @@ import { PAL } from '../palette'
 import { VIEW_W, VIEW_H, drawSky, text, textSegments, drawKeyHint } from '../render'
 import { drawHpPips, promptAt } from '../ui/hud'
 import { clamp } from '../entities/entity'
-import { Crate, Building, ITEM_NAMES, BUILD_HOLD, DECON_HOLD, type CrateItem } from '../entities/buildings'
+import { Crate, Building, BUILD_HOLD, DECON_HOLD, type CrateItem } from '../entities/buildings'
 import { Drone } from '../entities/drone'
 import { Pirate } from '../entities/pirate'
 import { Flare } from '../entities/pirateship'
@@ -13,6 +13,7 @@ import { WORLD_W, MIN_LAUNCH_FUEL } from '../world/world'
 import { sfx, setWarDrums } from '../audio/sfx'
 import { Native } from '../entities/native'
 import { TUT } from '../ui/patscript'
+import { S } from '../i18n'
 
 const GROUND_LEVEL = 1560
 const SLOT = 36
@@ -145,7 +146,7 @@ export class GroundStage implements Stage {
         }
       }
       const level = nd === Infinity ? 0 : Math.max(0, 1 - nd / 1100)
-      setWarDrums(Math.min(0.45, level), clamp((nx - player.x) / 600, -1, 1) * 0.8)
+      setWarDrums(Math.min(0.6, level), clamp((nx - player.x) / 600, -1, 1) * 0.8)
     } else {
       setWarDrums(0)
     }
@@ -156,12 +157,12 @@ export class GroundStage implements Stage {
         player.dead = false
         player.hp = player.maxHp
         if (!w.entities.includes(player)) w.entities.push(player)
-        this.game.pat.show(TUT.death)
+        this.game.pat.show(TUT().death)
       } else if (w.meteorStorm) {
         // dying under the meteor storm isn't a game over — a rude awakening
         this.game.wakeFromDream()
       } else {
-        this.game.terminate('EXTRACTOR DOWN')
+        this.game.terminate(S().dock.reasonDown)
       }
     } else if (lander.dead && !w.meteorStorm) {
       if (w.simulated) {
@@ -169,7 +170,7 @@ export class GroundStage implements Stage {
         lander.dead = false
         lander.hp = lander.maxHp * 0.4
         if (!w.entities.includes(lander)) w.entities.push(lander)
-        w.addFloater(lander.x, lander.y - 70, 'SIMULATION: LANDER RESTORED', PAL.accent)
+        w.addFloater(lander.x, lander.y - 70, S().world.landerRestored, PAL.accent)
       }
       // real runs: a dead lander is not the end — it's the STRANDED path
       // (steal a pirate ship; the HUD objective takes over via isStranded)
@@ -189,7 +190,7 @@ export class GroundStage implements Stage {
     } else if (player.carrying && shipDock && input.wasPressed('KeyE')) {
       // ferrying gear onto your soon-to-be ship: it escapes with you
       w.pirateShip!.stowed.push(player.carrying)
-      w.addFloater(w.pirateShip!.x, w.pirateShip!.y - 56, 'CRATE STOWED', PAL.good)
+      w.addFloater(w.pirateShip!.x, w.pirateShip!.y - 56, S().world.crateStowed, PAL.good)
       player.carrying = null
       sfx.pickup()
     } else if (focus?.kind === 'flare' && input.wasPressed('KeyE')) {
@@ -197,7 +198,7 @@ export class GroundStage implements Stage {
       w.spawn(new Flare(player.x, player.y - 24))
       w.flareFiredByPlayer = true
       w.summonShipForced()
-      w.addFloater(player.x, player.cy - 30, 'FLARE FIRED', PAL.danger)
+      w.addFloater(player.x, player.cy - 30, S().world.flareFired, PAL.danger)
       return
     } else if (focus?.kind === 'ship' && input.wasPressed('KeyE')) {
       w.escapedInPirateShip = true
@@ -266,7 +267,7 @@ export class GroundStage implements Stage {
         : null
       const valid = item.kind !== 'drill' || node !== null
       if (input.wasPressed('KeyB') && !valid) {
-        w.addFloater(player.x, player.cy - 24, 'NEEDS AN ORE NODE', PAL.danger)
+        w.addFloater(player.x, player.cy - 24, S().prompts.needsNode, PAL.danger)
         sfx.deny()
       }
       if (input.isDown('KeyB') && valid) {
@@ -301,11 +302,11 @@ export class GroundStage implements Stage {
     const fill = Math.round(item.fill)
     if ((item.kind === 'drill' || item.kind === 'drone') && fill > 0) {
       lander.ore += fill
-      w.addFloater(lander.x, lander.y - 60, `+${fill} ORE`, PAL.good)
+      w.addFloater(lander.x, lander.y - 60, S().world.plusOre(fill), PAL.good)
     } else if (item.kind === 'fuelgen' && fill > 0) {
       const added = Math.min(fill, 100 - Math.round(lander.fuel))
       lander.fuel = Math.min(100, lander.fuel + fill)
-      w.addFloater(lander.x, lander.y - 60, `+${added} FUEL`, PAL.warm)
+      w.addFloater(lander.x, lander.y - 60, S().world.plusFuel(added), PAL.warm)
     }
     item.fill = 0
     lander.inventory.push(item)
@@ -335,13 +336,13 @@ export class GroundStage implements Stage {
       const item = lander.inventory[i]
       if (item.kind === 'medikit') {
         if (player.hp >= player.maxHp) {
-          w.addFloater(lander.x, lander.y - 78, 'HP ALREADY FULL', PAL.dim)
+          w.addFloater(lander.x, lander.y - 78, S().prompts.hpFull, PAL.dim)
           sfx.deny()
           return
         }
         player.hp = player.maxHp
         lander.inventory.splice(i, 1)
-        w.addFloater(player.x, player.cy - 26, 'FULL HP', PAL.good)
+        w.addFloater(player.x, player.cy - 26, S().prompts.fullHp, PAL.good)
         sfx.pickup()
       } else {
         player.carrying = lander.inventory.splice(i, 1)[0]
@@ -353,7 +354,7 @@ export class GroundStage implements Stage {
     // LAUNCH slot: leave whenever you like — HQ grades the cargo bay, not you
     const needFuel = Math.max(0, MIN_LAUNCH_FUEL - Math.round(lander.fuel))
     if (needFuel > 0) {
-      w.addFloater(lander.x, lander.y - 78, `NEED ${needFuel} MORE FUEL`, PAL.danger)
+      w.addFloater(lander.x, lander.y - 78, S().prompts.needFuel(needFuel), PAL.danger)
       sfx.deny()
       return
     }
@@ -445,32 +446,68 @@ export class GroundStage implements Stage {
     const nearLander = Math.abs(player.x - lander.x) < 76 && Math.abs(player.y - lander.y) < 70
 
     if (player.carrying) {
-      if (nearLander && !lander.dead) promptAt(ctx, ...this.toScreen(lander.x, lander.y - 96, camX, camY), 'E — STORE CRATE')
+      if (nearLander && !lander.dead) promptAt(ctx, ...this.toScreen(lander.x, lander.y - 96, camX, camY), S().prompts.storeCrate)
       const ship = w.pirateShip
       if (ship && !ship.dead && ship.state === 'landed' && Math.abs(player.x - ship.x) < 76) {
-        promptAt(ctx, ...this.toScreen(ship.x, ship.y - 56, camX, camY), 'E — STOW CRATE')
+        promptAt(ctx, ...this.toScreen(ship.x, ship.y - 56, camX, camY), S().prompts.stowCrate)
       }
-      drawKeyHint(ctx, '[Q] DROP · HOLD [B] BUILD', VIEW_W / 2, 524)
+      drawKeyHint(ctx, S().prompts.carryHints, VIEW_W / 2, 524)
     } else {
       // one prompt: whatever E is focused on (V cycles when things overlap)
       const focus = this.focus
       // the V hint rides directly under whatever prompt it applies to —
       // parked at the bottom of the screen nobody ever saw it
       const vHint = this.focusables.length > 1
-        ? `[V] SWITCH TARGET (${this.focusIdx + 1}/${this.focusables.length})`
+        ? S().prompts.switchTarget(this.focusIdx + 1, this.focusables.length)
         : null
       if (focus && focus.e) {
         const e = focus.e
         const label =
-          focus.kind === 'flare' ? 'E — FIRE FLARE' :
-          focus.kind === 'crate' ? 'E — PICK UP' :
-          focus.kind === 'ship' ? 'E — ESCAPE TO ORBIT' :
-          'HOLD E — DECONSTRUCT'
+          focus.kind === 'flare' ? S().prompts.fireFlare :
+          focus.kind === 'crate' ? S().prompts.pickUp :
+          focus.kind === 'ship' ? S().prompts.escapeOrbit :
+          S().prompts.decon
         const [px2, py2] = this.toScreen(e.x, e.y - e.h - 14, camX, camY)
         promptAt(ctx, px2, py2, label)
         if (vHint) drawKeyHint(ctx, vHint, px2, py2 + 15, 9)
       }
-      if (focus?.kind !== 'lander') drawKeyHint(ctx, '[CLICK] SHOOT · [G] GRENADE · [SPACE] JUMP · [SHIFT] SPRINT', VIEW_W / 2, 524)
+      if (focus?.kind !== 'lander') drawKeyHint(ctx, S().prompts.groundHints, VIEW_W / 2, 524)
+    }
+
+    // stranded and hunting a flare: a red arrow rides the nearest pirate
+    if (w.isStranded() && !this.shipStealable(w) && !w.pirateShip &&
+        !w.entities.some((e) => e instanceof FlarePickup && !e.dead)) {
+      let best: Pirate | null = null
+      let bd = Infinity
+      for (const e of w.entities) {
+        if (e instanceof Pirate && !e.dead) {
+          const d = Math.abs(e.x - w.player.x)
+          if (d < bd) { bd = d; best = e }
+        }
+      }
+      if (best && Math.sin(w.time * 6) > -0.4) {
+        const [px2, py2] = this.toScreen(best.x, best.y - best.h - 22, camX, camY)
+        ctx.fillStyle = PAL.danger
+        if (px2 < 10 || px2 > VIEW_W - 10) {
+          // off-screen: edge chevron at eye height
+          const left2 = px2 < 10
+          const ex2 = left2 ? 26 : VIEW_W - 26
+          ctx.beginPath()
+          ctx.moveTo(ex2 + (left2 ? -12 : 12), 260)
+          ctx.lineTo(ex2 + (left2 ? 4 : -4), 251)
+          ctx.lineTo(ex2 + (left2 ? 4 : -4), 269)
+          ctx.closePath()
+          ctx.fill()
+        } else {
+          const bob = Math.sin(w.time * 7) * 4
+          ctx.beginPath()
+          ctx.moveTo(px2 - 8, py2 - 14 + bob)
+          ctx.lineTo(px2 + 8, py2 - 14 + bob)
+          ctx.lineTo(px2, py2 - 2 + bob)
+          ctx.closePath()
+          ctx.fill()
+        }
+      }
     }
 
     // landed pirate ship off-screen: time-critical, point the way
@@ -487,7 +524,7 @@ export class GroundStage implements Stage {
         ctx.lineTo(ex + (left ? 4 : -4), 309)
         ctx.closePath()
         ctx.fill()
-        text(ctx, 'PIRATE SHIP', ex + (left ? 10 : -10), 322, { size: 9, color: PAL.danger, align: left ? 'left' : 'right' })
+        text(ctx, S().hud.pirateShip, ex + (left ? 10 : -10), 322, { size: 9, color: PAL.danger, align: left ? 'left' : 'right' })
       }
     }
 
@@ -507,7 +544,7 @@ export class GroundStage implements Stage {
         const cx = r.x + r.width / 2
         if (i < inv.length) {
           this.drawItemIcon(ctx, inv[i], cx, r.y + r.height / 2)
-          if (selected) text(ctx, ITEM_NAMES[inv[i].kind], cx, r.y - 6, { size: 10, color: PAL.accent })
+          if (selected) text(ctx, S().items[inv[i].kind], cx, r.y - 6, { size: 10, color: PAL.accent })
         } else {
           const ready = lander.fuel >= MIN_LAUNCH_FUEL
           const quotaMet = lander.ore >= w.quota
@@ -520,17 +557,17 @@ export class GroundStage implements Stage {
           ctx.fill()
           if (selected) {
             const color = ready ? (quotaMet ? PAL.good : PAL.warm) : PAL.dim
-            const sub = !ready ? '(NO FUEL)' : quotaMet ? null : '(QUOTA SHORT)'
-            text(ctx, 'BOARD & LAUNCH', cx, r.y - (sub ? 17 : 6), { size: 10, color })
+            const sub = !ready ? S().prompts.noFuel : quotaMet ? null : S().prompts.quotaShort
+            text(ctx, S().prompts.boardLaunch, cx, r.y - (sub ? 17 : 6), { size: 10, color })
             if (sub) text(ctx, sub, cx, r.y - 6, { size: 9, color })
           }
         }
       }
       const r0 = slots[0]
       const hx = r0.x + (slots.length * (SLOT + 4)) / 2
-      drawKeyHint(ctx, '[Q]/[E] SELECT · [F] OR [CLICK] USE', hx, r0.y + SLOT + 14, 9)
+      drawKeyHint(ctx, S().prompts.rackHint, hx, r0.y + SLOT + 14, 9)
       if (this.focusables.length > 1) {
-        drawKeyHint(ctx, `[V] SWITCH TARGET (${this.focusIdx + 1}/${this.focusables.length})`, hx, r0.y + SLOT + 27, 9)
+        drawKeyHint(ctx, S().prompts.switchTarget(this.focusIdx + 1, this.focusables.length), hx, r0.y + SLOT + 27, 9)
       }
     }
   }
@@ -590,10 +627,10 @@ export class GroundStage implements Stage {
     ctx.fillStyle = player.stamina < 25 ? PAL.warm : PAL.accent
     ctx.fillRect(14, 507, 97 * (player.stamina / 100), 4)
     const oreDone = lander.ore >= w.quota
-    text(ctx, `ORE ${Math.min(999, Math.round(lander.ore))}/${w.quota}`, VIEW_W - 16, 26, {
+    text(ctx, `${S().hud.ore} ${Math.min(999, Math.round(lander.ore))}/${w.quota}`, VIEW_W - 16, 26, {
       size: 13, color: oreDone ? PAL.good : PAL.pale, align: 'right',
     })
-    text(ctx, `FUEL ${Math.round(lander.fuel)}`, VIEW_W - 16, 44, {
+    text(ctx, `${S().hud.fuel} ${Math.round(lander.fuel)}`, VIEW_W - 16, 44, {
       size: 13, color: lander.fuel >= MIN_LAUNCH_FUEL ? PAL.pale : PAL.warm, align: 'right',
     })
     // projected payout so far (banked ore + field events)
@@ -603,20 +640,22 @@ export class GroundStage implements Stage {
     })
     let hudY = 80
     if (w.weather !== 'clear') {
-      const wx = { wind: 'STRONG WINDS', rain: 'RAIN', hail: 'HAIL', storm: 'THUNDERSTORM' }[w.weather]
-      text(ctx, `WEATHER: ${wx}`, VIEW_W - 16, hudY, {
+      const wx = { wind: S().hud.wind, rain: S().hud.rain, hail: S().hud.hail, storm: S().hud.storm }[w.weather]
+      text(ctx, `${S().hud.weather}: ${wx}`, VIEW_W - 16, hudY, {
         size: 10, color: w.weather === 'storm' ? PAL.warm : PAL.dim, align: 'right',
       })
       hudY += 18
     }
     if (Math.round(lander.ore) > 200) {
-      text(ctx, `OVERWEIGHT +${Math.round(lander.ore) - 200} · Z VENT`, VIEW_W - 16, hudY, {
+      text(ctx, `${S().hud.overweight} +${Math.round(lander.ore) - 200} · ${S().hud.ventZ}`, VIEW_W - 16, hudY, {
         size: 10, color: PAL.warm, align: 'right',
       })
       hudY += 18
     }
-    if (lander.hp < lander.maxHp) {
-      text(ctx, `LANDER ${Math.round((lander.hp / lander.maxHp) * 100)}%`, VIEW_W - 16, hudY, {
+    if (lander.dead) {
+      text(ctx, S().hud.landerGone, VIEW_W - 16, hudY, { size: 11, color: PAL.danger, align: 'right' })
+    } else if (lander.hp < lander.maxHp) {
+      text(ctx, `${S().hud.lander} ${Math.round((lander.hp / lander.maxHp) * 100)}%`, VIEW_W - 16, hudY, {
         size: 11, color: lander.hp < 140 ? PAL.danger : PAL.dim, align: 'right',
       })
     }
@@ -631,25 +670,25 @@ export class GroundStage implements Stage {
 
     // tutorial owns the guidance: no objective line to fight P.A.T. for attention
     if (w.simulated) {
-      text(ctx, '— SIMULATED DROP —', VIEW_W / 2, 26, {
+      text(ctx, S().hud.simBadge, VIEW_W / 2, 26, {
         size: 11, color: PAL.accent, alpha: 0.7 + Math.sin(w.time * 2.5) * 0.3,
       })
       return
     }
     // one-line objective with the load-bearing words in color
     if (w.meteorStorm) {
-      textSegments(ctx, [['THE SKY IS FALLING', PAL.danger]], VIEW_W / 2, 26, 12)
-      textSegments(ctx, [['THERE IS NO ESCAPE', PAL.danger]], VIEW_W / 2, 42, 10)
+      textSegments(ctx, [[S().hud.skyFalling, PAL.danger]], VIEW_W / 2, 26, 12)
+      textSegments(ctx, [[S().hud.noEscape, PAL.danger]], VIEW_W / 2, 42, 10)
       return
     }
     if (w.isStranded()) {
-      textSegments(ctx, [['STEAL A PIRATE SHIP TO ESCAPE', PAL.warm]], VIEW_W / 2, 26, 12)
+      textSegments(ctx, [[S().hud.strandedSteal, PAL.warm]], VIEW_W / 2, 26, 12)
       let sub: [string, string][]
-      if (this.shipStealable(w)) sub = [['BOARD THE SHIP', PAL.good]]
-      else if (w.pirateShip) sub = [['CLEAR THE CREW', PAL.danger]]
-      else if (w.shipPending) sub = [['PIRATE SHIP INBOUND', PAL.danger]]
-      else if (w.entities.some((e) => e instanceof FlarePickup && !e.dead)) sub = [['FIRE THE FLARE', PAL.danger]]
-      else sub = [['KILL A PIRATE TO GET A ', PAL.pale], ['DISTRESS FLARE', PAL.danger]]
+      if (this.shipStealable(w)) sub = [[S().hud.strandedBoard, PAL.good]]
+      else if (w.pirateShip) sub = [[S().hud.strandedClear, PAL.danger]]
+      else if (w.shipPending) sub = [[S().hud.strandedInbound, PAL.danger]]
+      else if (w.entities.some((e) => e instanceof FlarePickup && !e.dead)) sub = [[S().hud.strandedFlare, PAL.danger]]
+      else sub = [[S().hud.strandedKill, PAL.pale], [S().hud.strandedFlareWord, PAL.danger]]
       textSegments(ctx, sub, VIEW_W / 2, 42, 10)
       return
     }
@@ -661,27 +700,27 @@ export class GroundStage implements Stage {
         ((e instanceof Crate || e instanceof Building) && !e.dead && e.item.kind === 'drill'))
     if (!drillsExist && !oreDone) {
       textSegments(ctx, [
-        ['EXTRACTION FAILED', PAL.danger],
+        [S().hud.extractionFailed, PAL.danger],
         [': ', PAL.pale],
-        ['ALL EXTRACTORS', PAL.accent],
-        [' DESTROYED — RETURN TO ORBIT', PAL.pale],
+        [S().hud.allExtractors, PAL.accent],
+        [S().hud.destroyed, PAL.pale],
       ], VIEW_W / 2, 26, 11)
       return
     }
     const drills = w.entities.filter((e) => e instanceof Building && (e as Building).item.kind === 'drill').length
     let segs: [string, string][]
     if (oreDone && lander.fuel >= MIN_LAUNCH_FUEL) {
-      segs = [['READY — BOARD THE LANDER', PAL.good]]
+      segs = [[S().hud.objReady, PAL.good]]
     } else if (oreDone) {
-      segs = [['QUOTA MET — GET ', PAL.pale], ['FUEL', PAL.warm], [' TO THE LANDER', PAL.pale]]
+      segs = [[S().hud.objQuotaMet, PAL.pale], [S().hud.objFuelWord, PAL.warm], [S().hud.objToLander, PAL.pale]]
     } else if (drills === 0) {
-      segs = [['TAKE ', PAL.pale], ['EXTRACTORS', PAL.accent], [' FROM THE LANDER — BUILD ON ', PAL.pale], ['ORE NODES', PAL.good]]
+      segs = [[S().hud.objTake, PAL.pale], [S().hud.objExtractors, PAL.accent], [S().hud.objBuildOn, PAL.pale], [S().hud.objOreNodes, PAL.good]]
     } else {
-      segs = [['RETURN ', PAL.pale], ['FULL EXTRACTORS', PAL.good], [' TO THE LANDER', PAL.pale]]
+      segs = [[S().hud.objReturn, PAL.pale], [S().hud.objFullExtractors, PAL.good], [S().hud.objToLander, PAL.pale]]
       // second line: nudge toward automation until a drone is in the air
       const droneUp = w.entities.some((e) => e instanceof Drone && !e.dead)
       if (!droneUp) {
-        textSegments(ctx, [['USE THE ', PAL.pale], ['PICKUP DRONE', PAL.accent], [' TO AUTOMATE', PAL.pale]], VIEW_W / 2, 42, 10)
+        textSegments(ctx, [[S().hud.objUseThe, PAL.pale], [S().hud.objDrone, PAL.accent], [S().hud.objAutomate, PAL.pale]], VIEW_W / 2, 42, 10)
       }
     }
     textSegments(ctx, segs, VIEW_W / 2, 26, 11)

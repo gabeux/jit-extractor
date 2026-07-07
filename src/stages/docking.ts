@@ -10,6 +10,7 @@ import { getCallsign, setCallsign, submitScore, recordPersonalBest, type SubmitR
 import { sendRunEnd } from '../net/analytics'
 import { fmtTime } from '../ui/scoreboard'
 import { sfx } from '../audio/sfx'
+import { S } from '../i18n'
 
 interface Line { t: string; c: string }
 
@@ -98,68 +99,68 @@ export class DockingStage implements Stage {
     // veterancy: from the tenth contract on, the debrief salutes (and we
     // remember it, in case future builds want to reward it)
     if (this.game.runsCompleted + 1 >= 10) {
-      this.lines.push({ t: "★ You're a seasoned dropper.", c: '#e8c35a' })
+      this.lines.push({ t: S().dock.seasoned, c: '#e8c35a' })
       try { localStorage.setItem('jit-seasoned-v1', '1') } catch { /* ok */ }
     }
 
     if (w.escapedInPirateShip) {
       this.launchProbe = false
       this.lines.push(
-        { t: 'Extractor, corporate would like to know why you have returned without', c: PAL.warm },
-        { t: 'completing your quota... AND in a Pirate Ship.', c: PAL.warm },
-        { t: 'You had one job... and you completed it with flying colors.', c: PAL.warm },
-        { t: "We're very proud of you - RTB.", c: PAL.warm },
+        { t: S().dock.escape1, c: PAL.warm },
+        { t: S().dock.escape2, c: PAL.warm },
+        { t: S().dock.escape3, c: PAL.warm },
+        { t: S().dock.escape4, c: PAL.warm },
       )
-      this.lines.push({ t: 'Salvage division appraisal: one (1) Pirate Cutter — $18,000. Not bad, Extractor.', c: PAL.good })
+      this.lines.push({ t: S().dock.salvageLine, c: PAL.good })
       if (w.lander.dead) {
-        this.lines.push({ t: 'Asset write-off: one (1) Lander, destroyed in the field — $3,000 deducted.', c: PAL.danger })
+        this.lines.push({ t: S().dock.landerLost, c: PAL.danger })
       }
       const abandoned = propertyLeft + (w.lander.dead ? 0 : 1)
       if (abandoned > 0) {
-        this.lines.push({ t: `CORPORATE NOTICE: ${abandoned} company asset(s) abandoned on-site. Costs will be deducted.`, c: PAL.danger })
+        this.lines.push({ t: S().dock.abandoned(abandoned), c: PAL.danger })
       }
       if (w.nativesKilledByPlayer > 0) {
-        this.lines.push({ t: `Field report: ${w.nativesKilledByPlayer} native casualties logged. Legal has been notified.`, c: PAL.danger })
+        this.lines.push({ t: S().dock.casualties(w.nativesKilledByPlayer), c: PAL.danger })
       }
       return
     }
     this.launchProbe = ore > 0
     if (ore === 0) {
       this.lines.push(
-        { t: 'Uh. Empty cargo bay? Do you need to go to the bathroom?', c: PAL.warm },
-        { t: 'Return to the ground, Extractor. Profit awaits.', c: PAL.warm },
+        { t: S().dock.empty1, c: PAL.warm },
+        { t: S().dock.empty2, c: PAL.warm },
       )
     } else if (this.quotaMet) {
       this.lines.push(
-        { t: 'Great work, Extractor.', c: PAL.accent },
-        { t: "We're processing your payment - delivery probe has been launched.", c: PAL.accent },
-        { t: 'Feel free to launch and fulfill the next quota.', c: PAL.accent },
+        { t: S().dock.quota1, c: PAL.accent },
+        { t: S().dock.quota2, c: PAL.accent },
+        { t: S().dock.quota3, c: PAL.accent },
       )
     } else if (ore >= w.quota / 2) {
       this.lines.push(
-        { t: 'Half a quota, Extractor. We are processing half a payment.', c: PAL.accent },
-        { t: 'Delivery probe launched. HQ notices these things.', c: PAL.dim },
+        { t: S().dock.half1, c: PAL.accent },
+        { t: S().dock.half2, c: PAL.dim },
       )
     } else {
       this.lines.push(
-        { t: "That is... not a quota. Payment docked accordingly.", c: PAL.warm },
-        { t: 'Delivery probe launched, mostly empty. Try harder next drop.', c: PAL.warm },
+        { t: S().dock.miss1, c: PAL.warm },
+        { t: S().dock.miss2, c: PAL.warm },
       )
     }
     if (propertyLeft > 0) {
-      this.lines.push({ t: `CORPORATE NOTICE: ${propertyLeft} company asset(s) abandoned on-site. Costs will be deducted.`, c: PAL.danger })
+      this.lines.push({ t: S().dock.abandoned(propertyLeft), c: PAL.danger })
     }
     if (w.pirateShipEscaped > 0) {
-      this.lines.push({ t: `Pirates escaped with ${w.pirateShipEscaped} units of Company ore. Also deducted.`, c: PAL.danger })
+      this.lines.push({ t: S().dock.piratesEscaped(w.pirateShipEscaped), c: PAL.danger })
     }
     if (w.nativesKilledByPlayer > 0) {
-      this.lines.push({ t: `Field report: ${w.nativesKilledByPlayer} native casualties logged. Legal has been notified.`, c: PAL.danger })
+      this.lines.push({ t: S().dock.casualties(w.nativesKilledByPlayer), c: PAL.danger })
     }
     if (lifeLeft === 0) {
-      this.lines.push({ t: 'Biosphere scan: NO LIFE DETECTED. Impressive. Horrifying, but impressive.', c: PAL.dim })
+      this.lines.push({ t: S().dock.noLife, c: PAL.dim })
     }
     if (w.pirateShipDestroyed) {
-      this.lines.push({ t: 'Outstanding work neutralizing the local Pirate threat: you are in for a promotion.', c: PAL.good })
+      this.lines.push({ t: S().dock.pirateBonus, c: PAL.good })
     }
   }
 
@@ -301,18 +302,15 @@ export class DockingStage implements Stage {
     }
 
     if (!this.docked) {
-      text(ctx, 'DOCKING…', VIEW_W / 2, 300, { size: 12, color: PAL.dim })
+      text(ctx, S().dock.docking, VIEW_W / 2, 300, { size: 12, color: PAL.dim })
       return
     }
 
     // training sim: a clean congratulations card replaces the whole debrief
     if (this.game.world?.simulated) {
       if (this.t > 2.8) {
-        text(ctx, 'TRAINING RUN COMPLETE', VIEW_W / 2, 258, { size: 24, color: PAL.good })
-        const congrats = [
-          'Congratulations on finishing the training sim.',
-          'The company looks forward to profiting with you.',
-        ]
+        text(ctx, S().dock.trainingDone, VIEW_W / 2, 258, { size: 24, color: PAL.good })
+        const congrats = [S().dock.training1, S().dock.training2]
         let budget = Math.floor((this.t - 3.1) * 55)
         let cy = 292
         for (const line of congrats) {
@@ -322,7 +320,7 @@ export class DockingStage implements Stage {
           cy += 19
         }
         if (this.phase === 'done' && Math.sin(this.t * 4) > -0.2) {
-          drawKeyHint(ctx, '[E] NEXT CONTRACT', VIEW_W / 2, 348, 11)
+          drawKeyHint(ctx, S().dock.nextContract, VIEW_W / 2, 348, 11)
         }
       }
       text(ctx, 'Made by @Gabeux.', VIEW_W - 16, 528, { size: 10, color: PAL.pale, align: 'right', alpha: 0.85 })
@@ -343,45 +341,45 @@ export class DockingStage implements Stage {
     // the ledger
     y += 12
     const pc = this.profit >= 0 ? PAL.good : PAL.danger
-    text(ctx, `PROFIT: ${this.profit < 0 ? '-' : ''}$${Math.abs(this.profit)}`, VIEW_W / 2, y, { size: 20, color: pc })
+    text(ctx, `${S().dock.profit}: ${this.profit < 0 ? '-' : ''}$${Math.abs(this.profit)}`, VIEW_W / 2, y, { size: 20, color: pc })
     y += 20
     const fieldStr = `${this.fieldValue < 0 ? '-' : ''}$${Math.abs(this.fieldValue)}`
     textSegments(ctx, [
-      [`ORE $${this.oreValue}`, PAL.pale], ['  ·  ', PAL.dim],
+      [`${S().dock.oreL} $${this.oreValue}`, PAL.pale], ['  ·  ', PAL.dim],
       ...(this.fuelValue > 0
-        ? [[`FUEL $${this.fuelValue}`, PAL.pale] as [string, string], ['  ·  ', PAL.dim] as [string, string]]
-        : [['FUEL BONUS — QUOTA ONLY', PAL.dim] as [string, string], ['  ·  ', PAL.dim] as [string, string]]),
-      [`FIELD ${fieldStr}`, this.fieldValue >= 0 ? PAL.pale : PAL.danger],
+        ? [[`${S().dock.fuelL} $${this.fuelValue}`, PAL.pale] as [string, string], ['  ·  ', PAL.dim] as [string, string]]
+        : [[S().dock.fuelBonus, PAL.dim] as [string, string], ['  ·  ', PAL.dim] as [string, string]]),
+      [`${S().dock.field} ${fieldStr}`, this.fieldValue >= 0 ? PAL.pale : PAL.danger],
       ...(this.equipValue < 0
-        ? [['  ·  ', PAL.dim] as [string, string], [`EQUIPMENT -$${-this.equipValue}`, PAL.danger] as [string, string]]
+        ? [['  ·  ', PAL.dim] as [string, string], [`${S().dock.equipment} -$${-this.equipValue}`, PAL.danger] as [string, string]]
         : []),
       ...(this.salvageValue > 0
-        ? [['  ·  ', PAL.dim] as [string, string], [`SALVAGE $${this.salvageValue}`, PAL.good] as [string, string]]
+        ? [['  ·  ', PAL.dim] as [string, string], [`${S().dock.salvage} $${this.salvageValue}`, PAL.good] as [string, string]]
         : []),
-      ...(this.quotaMet ? [['  ·  ', PAL.dim] as [string, string], [`TIME ${fmtTime(this.timeMs)}`, PAL.accent] as [string, string]] : []),
+      ...(this.quotaMet ? [['  ·  ', PAL.dim] as [string, string], [`${S().dock.time} ${fmtTime(this.timeMs)}`, PAL.accent] as [string, string]] : []),
     ], VIEW_W / 2, y, 11)
     y += 30
 
     if (this.phase === 'entry') {
       const cursor = Math.sin(this.t * 6) > 0 ? '_' : ' '
-      text(ctx, `CALLSIGN: ${this.nameBuf}${cursor}`, VIEW_W / 2, y, { size: 14, color: PAL.white })
-      drawKeyHint(ctx, 'TYPE NAME · [ENTER] SUBMIT TO LEADERBOARD (EMPTY = SKIP)', VIEW_W / 2, y + 20, 9)
+      text(ctx, `${S().dock.callsign}: ${this.nameBuf}${cursor}`, VIEW_W / 2, y, { size: 14, color: PAL.white })
+      drawKeyHint(ctx, S().dock.submitHint, VIEW_W / 2, y + 20, 9)
     } else if (this.phase === 'submitting') {
-      text(ctx, 'TRANSMITTING TO HQ…', VIEW_W / 2, y, { size: 12, color: PAL.dim })
+      text(ctx, S().dock.transmitting, VIEW_W / 2, y, { size: 12, color: PAL.dim })
     } else if (this.phase === 'done') {
       if (this.newTop) {
         const glow = 0.6 + Math.sin(this.t * 6) * 0.4
-        text(ctx, 'NEW TOP PROFIT!', VIEW_W / 2, y, { size: 22, color: PAL.good, alpha: glow })
+        text(ctx, S().dock.newTop, VIEW_W / 2, y, { size: 22, color: PAL.good, alpha: glow })
         y += 24
       }
       if (this.result) {
-        const off = this.result.offline ? ' (OFFLINE)' : ''
-        const rank = this.result.rankProfit ? `LEADERBOARD RANK #${this.result.rankProfit}${off}` : `RECORDED${off}`
+        const off = this.result.offline ? S().dock.offline : ''
+        const rank = this.result.rankProfit ? S().dock.rank(this.result.rankProfit, off) : S().dock.recorded + off
         text(ctx, rank, VIEW_W / 2, y, { size: 11, color: PAL.pale })
         y += 18
       }
       if (Math.sin(this.t * 4) > -0.2) {
-        drawKeyHint(ctx, '[E] NEXT CONTRACT · [TAB] LEADERBOARD', VIEW_W / 2, y + 8, 11)
+        drawKeyHint(ctx, S().dock.nextHint, VIEW_W / 2, y + 8, 11)
       }
     }
 
@@ -409,10 +407,10 @@ export class GameOverStage implements Stage {
     ctx.fillStyle = PAL.bgSpace
     ctx.fillRect(0, 0, VIEW_W, VIEW_H)
     drawStars(ctx, 0, 0, 0.4)
-    text(ctx, 'CONTRACT TERMINATED', VIEW_W / 2, 240, { size: 26, color: PAL.danger })
+    text(ctx, S().dock.terminated, VIEW_W / 2, 240, { size: 26, color: PAL.danger })
     text(ctx, this.reason, VIEW_W / 2, 274, { size: 13, color: PAL.pale })
     if (this.t > 1 && Math.sin(this.t * 4) > -0.2) {
-      drawKeyHint(ctx, '[E] NEW CONTRACT · [TAB] LEADERBOARD', VIEW_W / 2, 340, 12)
+      drawKeyHint(ctx, S().dock.newContract, VIEW_W / 2, 340, 12)
     }
   }
 }

@@ -105,8 +105,9 @@ export class PirateShip extends Entity {
       this.landedT += dt
       this.checkT -= dt
       // generous ground stay: a stranded player needs real time to fight
-      // their way over before the crew packs up and leaves
-      if (this.checkT <= 0 && this.landedT > 24) {
+      // their way over before the crew packs up and leaves — and when this
+      // ship IS the only ride home, it waits a good while longer
+      if (this.checkT <= 0 && this.landedT > (w.isStranded() ? 54 : 24)) {
         this.checkT = 0.7
         // job done? nothing left to loot, no pirate anywhere still hauling
         const lootLeft = w.entities.some((e) => e instanceof OreDrop && !e.dead)

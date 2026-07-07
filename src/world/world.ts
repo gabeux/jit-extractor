@@ -14,6 +14,7 @@ import { warKey, factionsHostile } from '../systems/factions'
 import { mulberry32, range, irange, type Rng } from '../rng'
 import { PAL } from '../palette'
 import { sfx } from '../audio/sfx'
+import { S } from '../i18n'
 
 export const WORLD_W = 3600
 export const ORE_QUOTA = 200 // the baseline; each world rolls its own quota
@@ -220,7 +221,7 @@ export class World {
     this.shipEventArmed = false
     if (flareFrom) this.spawn(new Flare(flareFrom.x, flareFrom.y - 24))
     else {
-      this.addFloater(this.lander.x, this.lander.y - 90, 'PIRATE SIGNAL DETECTED', PAL.danger)
+      this.addFloater(this.lander.x, this.lander.y - 90, S().world.pirateSignal, PAL.danger)
       sfx.alarm()
     }
     this.shipCountdown = range(this.rng, 6, 10)
@@ -357,6 +358,14 @@ export class World {
       }
     }
 
+    // stranded with no pirates left to rob: the flare source must respawn
+    // FAST (7s max) — nobody should stand in a field waiting for the plot
+    if (!this.simulated && this.isStranded() && !this.raidQueued && !this.pirateShip &&
+        !this.shipPending && !this.entities.some((e) => e.faction === 'pirate' && !e.dead)) {
+      this.raidQueued = true
+      this.raidCountdown = range(this.rng, 3, 7)
+    }
+
     // raid countdown
     if (this.raidQueued && this.raidCountdown > 0) {
       this.raidCountdown -= dt
@@ -476,14 +485,14 @@ export class World {
         addN(1, { x: e.x, hit: () => {
           if (e.item.kind === 'turret' && !e.turbo) {
             e.turbo = true
-            this.addFloater(e.x, e.cy - 26, 'TURBO TURRET', PAL.accent)
+            this.addFloater(e.x, e.cy - 26, S().world.turboTurret, PAL.accent)
           } else e.damage(this, 35, null)
         } })
       } else if (e instanceof Drone) {
         addN(1, { x: e.x, hit: () => {
           if (!e.turbo) {
             e.turbo = true
-            this.addFloater(e.x, e.y - 18, 'TURBO DRONE', PAL.accent)
+            this.addFloater(e.x, e.y - 18, S().world.turboDrone, PAL.accent)
           } else e.damage(this, 25, null)
         } })
       } else if (e === (this.player as Entity) && !this.player.inLander) {
