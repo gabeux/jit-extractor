@@ -50,12 +50,7 @@ living weather, variable contracts, and a big batch of playtest fixes.
   the nearest pirate, and the pirate ship waits 30s longer on the ground.
 - **Tribal war drums** — synthesized 6/8 pattern that swells as angry
   natives close in, panned toward them (WebAudio, no asset files).
-- **Wilhelm pods** — 5% of drop pods target a warm body; the scream plays
-  when a tribal is squished by a pod or the pirate ship's landing (which
-  now actually crushes whoever stands in the landing zone).
-- **Dream-ending escalation** — the meteor storm intensifies to
-  near-continuous over a minute, with an increasing share of red tracking
-  meteors that bend toward the player.
+- Assorted undocumented surprises. Extract carefully.
 
 ### Changed
 - Lander rack `LAUNCH` renamed **BOARD & LAUNCH** (qualifier on its own line).
@@ -88,6 +83,5 @@ living weather, variable contracts, and a big batch of playtest fixes.
 
 Initial public release: procedurally generated planets, extraction loop
 (descent / ground / ascent / docking), pirates, natives, wildlife,
-factions and wars, stranded pirate-ship escape, meteor-storm dream
-ending, synthesized audio, shared Cloudflare KV leaderboard with
-anonymous per-country analytics.
+factions and wars, synthesized audio, shared Cloudflare KV leaderboard
+with anonymous per-country analytics.
